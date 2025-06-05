@@ -3,7 +3,7 @@
 [git-collector-data]
 
 **URL:** https://github.com/modelcontextprotocol/python-sdk  
-**Date:** 5/15/2025, 8:40:33 AM  
+**Date:** 5/28/2025, 3:26:38 PM  
 **Files:** 1  
 
 === File: README.md ===
@@ -169,7 +169,7 @@ from dataclasses import dataclass
 
 from fake_database import Database  # Replace with your actual DB type
 
-from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.fastmcp import FastMCP
 
 # Create a named server
 mcp = FastMCP("My App")
@@ -201,9 +201,10 @@ mcp = FastMCP("My App", lifespan=app_lifespan)
 
 # Access type-safe lifespan context in tools
 @mcp.tool()
-def query_db(ctx: Context) -> str:
+def query_db() -> str:
     """Tool that uses initialized resources"""
-    db = ctx.request_context.lifespan_context.db
+    ctx = mcp.get_context()
+    db = ctx.request_context.lifespan_context["db"]
     return db.query()
 ```
 
@@ -323,27 +324,42 @@ async def long_task(files: list[str], ctx: Context) -> str:
 Authentication can be used by servers that want to expose tools accessing protected resources.
 
 `mcp.server.auth` implements an OAuth 2.0 server interface, which servers can use by
-providing an implementation of the `OAuthServerProvider` protocol.
+providing an implementation of the `OAuthAuthorizationServerProvider` protocol.
 
-```
-mcp = FastMCP("My App",
-        auth_server_provider=MyOAuthServerProvider(),
-        auth=AuthSettings(
-            issuer_url="https://myapp.com",
-            revocation_options=RevocationOptions(
-                enabled=True,
-            ),
-            client_registration_options=ClientRegistrationOptions(
-                enabled=True,
-                valid_scopes=["myscope", "myotherscope"],
-                default_scopes=["myscope"],
-            ),
-            required_scopes=["myscope"],
+```python
+from mcp import FastMCP
+from mcp.server.auth.provider import OAuthAuthorizationServerProvider
+from mcp.server.auth.settings import (
+    AuthSettings,
+    ClientRegistrationOptions,
+    RevocationOptions,
+)
+
+
+class MyOAuthServerProvider(OAuthAuthorizationServerProvider):
+    # See an example on how to implement at `examples/servers/simple-auth`
+    ...
+
+
+mcp = FastMCP(
+    "My App",
+    auth_server_provider=MyOAuthServerProvider(),
+    auth=AuthSettings(
+        issuer_url="https://myapp.com",
+        revocation_options=RevocationOptions(
+            enabled=True,
         ),
+        client_registration_options=ClientRegistrationOptions(
+            enabled=True,
+            valid_scopes=["myscope", "myotherscope"],
+            default_scopes=["myscope"],
+        ),
+        required_scopes=["myscope"],
+    ),
 )
 ```
 
-See [OAuthServerProvider](src/mcp/server/auth/provider.py) for more details.
+See [OAuthAuthorizationServerProvider](src/mcp/server/auth/provider.py) for more details.
 
 ## Running Your Server
 
@@ -470,14 +486,11 @@ For low level server with Streamable HTTP implementations, see:
 - Stateful server: [`examples/servers/simple-streamablehttp/`](examples/servers/simple-streamablehttp/)
 - Stateless server: [`examples/servers/simple-streamablehttp-stateless/`](examples/servers/simple-streamablehttp-stateless/)
 
-
-
 The streamable HTTP transport supports:
 - Stateful and stateless operation modes
 - Resumability with event stores
-- JSON or SSE response formats  
+- JSON or SSE response formats
 - Better scalability for multi-node deployments
-
 
 ### Mounting to an Existing ASGI Server
 
@@ -640,7 +653,7 @@ server = Server("example-server", lifespan=server_lifespan)
 # Access lifespan context in handlers
 @server.call_tool()
 async def query_db(name: str, arguments: dict) -> list:
-    ctx = server.get_context()
+    ctx = server.request_context
     db = ctx.lifespan_context["db"]
     return await db.query(arguments["query"])
 ```
@@ -804,6 +817,60 @@ async def main():
             # Call a tool
             tool_result = await session.call_tool("echo", {"message": "hello"})
 ```
+
+### OAuth Authentication for Clients
+
+The SDK includes [authorization support](https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization) for connecting to protected MCP servers:
+
+```python
+from mcp.client.auth import OAuthClientProvider, TokenStorage
+from mcp.client.session import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+from mcp.shared.auth import OAuthClientInformationFull, OAuthClientMetadata, OAuthToken
+
+
+class CustomTokenStorage(TokenStorage):
+    """Simple in-memory token storage implementation."""
+
+    async def get_tokens(self) -> OAuthToken | None:
+        pass
+
+    async def set_tokens(self, tokens: OAuthToken) -> None:
+        pass
+
+    async def get_client_info(self) -> OAuthClientInformationFull | None:
+        pass
+
+    async def set_client_info(self, client_info: OAuthClientInformationFull) -> None:
+        pass
+
+
+async def main():
+    # Set up OAuth authentication
+    oauth_auth = OAuthClientProvider(
+        server_url="https://api.example.com",
+        client_metadata=OAuthClientMetadata(
+            client_name="My Client",
+            redirect_uris=["http://localhost:3000/callback"],
+            grant_types=["authorization_code", "refresh_token"],
+            response_types=["code"],
+        ),
+        storage=CustomTokenStorage(),
+        redirect_handler=lambda url: print(f"Visit: {url}"),
+        callback_handler=lambda: ("auth_code", None),
+    )
+
+    # Use with streamable HTTP client
+    async with streamablehttp_client(
+        "https://api.example.com/mcp", auth=oauth_auth
+    ) as (read, write, _):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            # Authenticated session ready
+```
+
+For a complete working example, see [`examples/clients/simple-auth-client/`](examples/clients/simple-auth-client/).
+
 
 ### MCP Primitives
 

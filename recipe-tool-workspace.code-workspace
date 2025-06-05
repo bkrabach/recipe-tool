@@ -1,0 +1,78 @@
+{
+  "folders": [
+    {
+      "name": "⚙️ Recipe Executor Core",
+      "path": "./recipe-executor"
+    },
+    {
+      "name": "🔧 Recipe Tool Core",
+      "path": "./recipe-tool"
+    },
+    {
+      "name": "📄 Recipes",
+      "path": "./recipes"
+    },
+    {
+      "name": "📐 Blueprints",
+      "path": "./blueprints"
+    },
+    {
+      "name": "📚 Documentation",
+      "path": "./docs"
+    },
+    {
+      "name": "🤖 AI Context",
+      "path": "./ai_context"
+    },
+    {
+      "name": "🖥️ Document Generator App",
+      "path": "./apps/document-generator"
+    },
+    {
+      "name": "🖥️ Recipe Executor App",
+      "path": "./apps/recipe-executor"
+    },
+    {
+      "name": "🖥️ Recipe Tool App",
+      "path": "./apps/recipe-tool"
+    },
+    {
+      "name": "🌐 Docs Server MCP",
+      "path": "mcp-servers/docs-server"
+    },
+    {
+      "name": "🌐 Python Code Tools MCP",
+      "path": "./mcp-servers/python-code-tools"
+    },
+    {
+      "name": "🌐 Recipe Tool MCP",
+      "path": "./mcp-servers/recipe-tool"
+    },
+    {
+      "name": "🛠️ Tools",
+      "path": "./tools"
+    },
+    {
+      "name": "🏠 Workspace Root",
+      "path": "."
+    }
+  ],
+  "settings": {
+    // Inherit most settings from .vscode/settings.json
+    "python.defaultInterpreterPath": "./.venv/bin/python",
+
+    // Enable testing only for projects with working tests
+    "python.testing.pytestEnabled": true,
+    "python.testing.pytestArgs": ["--color=yes", "-v"],
+    "python.testing.autoTestDiscoverOnSaveEnabled": true,
+    "python.testing.unittestEnabled": false
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "charliermarsh.ruff",
+      "ms-python.debugpy",
+      "tamasfe.even-better-toml"
+    ]
+  }
+}

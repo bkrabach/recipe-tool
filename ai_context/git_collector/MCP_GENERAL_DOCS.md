@@ -3,7 +3,7 @@
 [git-collector-data]
 
 **URL:** https://github.com/modelcontextprotocol/modelcontextprotocol/tree/main/docs  
-**Date:** 4/23/2025, 11:19:36 AM  
+**Date:** 6/3/2025, 12:16:52 PM  
 **Files:** 10  
 
 === File: docs/docs/concepts/architecture.mdx ===
@@ -867,6 +867,7 @@ Servers expose a list of concrete resources via the `resources/list` endpoint. E
   name: string;          // Human-readable name
   description?: string;  // Optional description
   mimeType?: string;     // Optional MIME type
+  size?: number;         // Optional size in bytes
 }
 ```
 
@@ -2301,7 +2302,7 @@ The Claude.app interface provides basic server status information:
    - Connected servers
    - Available prompts and resources
 
-2. Click the <img src="/images/claude-desktop-mcp-hammer-icon.svg" style={{display: 'inline', margin: 0, height: '1.3em'}} /> icon to view:
+2. Click the "Search and tools" <img src="/images/claude-desktop-mcp-slider.svg" style={{display: 'inline', margin: 0, height: '1.3em'}} /> icon to view:
    - Tools made available to the model
 
 ### Viewing logs
@@ -2697,8 +2698,6 @@ The Inspector provides several features for interacting with your MCP server:
 title: Introduction
 description: 'Get started with the Model Context Protocol (MCP)'
 ---
-
-<Note>C# SDK released! Check out [what else is new.](/development/updates)</Note>
 
 MCP is an open protocol that standardizes how applications provide context to LLMs. Think of MCP like a USB-C port for AI applications. Just as USB-C provides a standardized way to connect your devices to various peripherals and accessories, MCP provides a standardized way to connect AI models to different data sources and tools.
 

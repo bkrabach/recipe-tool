@@ -3,7 +3,7 @@
 [git-collector-data]
 
 **URL:** https://github.com/pydantic/pydantic-ai/tree/main/docs  
-**Date:** 5/13/2025, 10:23:24 AM  
+**Date:** 6/3/2025, 12:16:54 PM  
 **Files:** 12  
 
 === File: docs/agents.md ===
@@ -144,29 +144,21 @@ async def main():
                     UserPromptPart(
                         content='What is the capital of France?',
                         timestamp=datetime.datetime(...),
-                        part_kind='user-prompt',
                     )
-                ],
-                instructions=None,
-                kind='request',
+                ]
             )
         ),
         CallToolsNode(
             model_response=ModelResponse(
-                parts=[TextPart(content='Paris', part_kind='text')],
+                parts=[TextPart(content='Paris')],
                 usage=Usage(
-                    requests=1,
-                    request_tokens=56,
-                    response_tokens=1,
-                    total_tokens=57,
-                    details=None,
+                    requests=1, request_tokens=56, response_tokens=1, total_tokens=57
                 ),
                 model_name='gpt-4o',
                 timestamp=datetime.datetime(...),
-                kind='response',
             )
         ),
-        End(data=FinalResult(output='Paris', tool_name=None, tool_call_id=None)),
+        End(data=FinalResult(output='Paris')),
     ]
     """
     print(agent_run.result.output)
@@ -215,29 +207,24 @@ async def main():
                         UserPromptPart(
                             content='What is the capital of France?',
                             timestamp=datetime.datetime(...),
-                            part_kind='user-prompt',
                         )
-                    ],
-                    instructions=None,
-                    kind='request',
+                    ]
                 )
             ),
             CallToolsNode(
                 model_response=ModelResponse(
-                    parts=[TextPart(content='Paris', part_kind='text')],
+                    parts=[TextPart(content='Paris')],
                     usage=Usage(
                         requests=1,
                         request_tokens=56,
                         response_tokens=1,
                         total_tokens=57,
-                        details=None,
                     ),
                     model_name='gpt-4o',
                     timestamp=datetime.datetime(...),
-                    kind='response',
                 )
             ),
-            End(data=FinalResult(output='Paris', tool_name=None, tool_call_id=None)),
+            End(data=FinalResult(output='Paris')),
         ]
         """
 ```
@@ -377,7 +364,8 @@ if __name__ == '__main__':
     [
         '=== UserPromptNode: What will the weather be like in Paris on Tuesday? ===',
         '=== ModelRequestNode: streaming partial request tokens ===',
-        '[Request] Starting part 0: ToolCallPart(tool_name=\'weather_forecast\', args=\'{"location":"Pa\', tool_call_id=\'0001\', part_kind=\'tool-call\')',
+        "[Request] Starting part 0: ToolCallPart(tool_name='weather_forecast', tool_call_id='0001')",
+        '[Request] Part 0 args_delta={"location":"Pa',
         '[Request] Part 0 args_delta=ris","forecast_',
         '[Request] Part 0 args_delta=date":"2030-01-',
         '[Request] Part 0 args_delta=01"}',
@@ -385,7 +373,7 @@ if __name__ == '__main__':
         '[Tools] The LLM calls tool=\'weather_forecast\' with args={"location":"Paris","forecast_date":"2030-01-01"} (tool_call_id=\'0001\')',
         "[Tools] Tool call '0001' returned => The forecast in Paris on 2030-01-01 is 24°C and sunny.",
         '=== ModelRequestNode: streaming partial request tokens ===',
-        "[Request] Starting part 0: TextPart(content='It will be ', part_kind='text')",
+        "[Request] Starting part 0: TextPart(content='It will be ')",
         '[Result] The model produced a final output (tool_name=None)',
         "[Request] Part 0 text delta: 'warm and sunny '",
         "[Request] Part 0 text delta: 'in Paris on '",
@@ -423,9 +411,7 @@ result_sync = agent.run_sync(
 print(result_sync.output)
 #> Rome
 print(result_sync.usage())
-"""
-Usage(requests=1, request_tokens=62, response_tokens=1, total_tokens=63, details=None)
-"""
+#> Usage(requests=1, request_tokens=62, response_tokens=1, total_tokens=63)
 
 try:
     result_sync = agent.run_sync(
@@ -722,6 +708,30 @@ print(result.output)
 
 _(This example is complete, it can be run "as is")_
 
+You can also dynamically change the instructions for an agent by using the `@agent.instructions` decorator.
+
+```python {title="dynamic_instructions.py"}
+from datetime import date
+
+from pydantic_ai import Agent, RunContext
+
+agent = Agent('openai:gpt-4o', deps_type=str)
+
+
+@agent.instructions
+def add_the_users_name(ctx: RunContext[str]) -> str:
+    return f"The user's name is {ctx.deps}."
+
+
+@agent.instructions
+def add_the_date() -> str:
+    return f'The date is {date.today()}.'
+
+result = agent.run_sync('What is the date?', deps='Frank')
+print(result.output)
+#> Hello Frank, the date today is 2032-01-02.
+```
+
 ## Reflection and self-correction
 
 Validation errors from both function tool parameter validation and [structured output validation](output.md#structured-output) can be passed back to the model with a request to retry.
@@ -813,11 +823,8 @@ with capture_run_messages() as messages:  # (2)!
                     UserPromptPart(
                         content='Please get me the volume of a box with size 6.',
                         timestamp=datetime.datetime(...),
-                        part_kind='user-prompt',
                     )
-                ],
-                instructions=None,
-                kind='request',
+                ]
             ),
             ModelResponse(
                 parts=[
@@ -825,19 +832,13 @@ with capture_run_messages() as messages:  # (2)!
                         tool_name='calc_volume',
                         args={'size': 6},
                         tool_call_id='pyd_ai_tool_call_id',
-                        part_kind='tool-call',
                     )
                 ],
                 usage=Usage(
-                    requests=1,
-                    request_tokens=62,
-                    response_tokens=4,
-                    total_tokens=66,
-                    details=None,
+                    requests=1, request_tokens=62, response_tokens=4, total_tokens=66
                 ),
                 model_name='gpt-4o',
                 timestamp=datetime.datetime(...),
-                kind='response',
             ),
             ModelRequest(
                 parts=[
@@ -846,11 +847,8 @@ with capture_run_messages() as messages:  # (2)!
                         tool_name='calc_volume',
                         tool_call_id='pyd_ai_tool_call_id',
                         timestamp=datetime.datetime(...),
-                        part_kind='retry-prompt',
                     )
-                ],
-                instructions=None,
-                kind='request',
+                ]
             ),
             ModelResponse(
                 parts=[
@@ -858,19 +856,13 @@ with capture_run_messages() as messages:  # (2)!
                         tool_name='calc_volume',
                         args={'size': 6},
                         tool_call_id='pyd_ai_tool_call_id',
-                        part_kind='tool-call',
                     )
                 ],
                 usage=Usage(
-                    requests=1,
-                    request_tokens=72,
-                    response_tokens=8,
-                    total_tokens=80,
-                    details=None,
+                    requests=1, request_tokens=72, response_tokens=8, total_tokens=80
                 ),
                 model_name='gpt-4o',
                 timestamp=datetime.datetime(...),
-                kind='response',
             ),
         ]
         """
@@ -1432,6 +1424,73 @@ async def main():
 
 1. See [MCP Run Python](run-python.md) for more information.
 
+## Using Tool Prefixes to Avoid Naming Conflicts
+
+When connecting to multiple MCP servers that might provide tools with the same name, you can use the `tool_prefix` parameter to avoid naming conflicts. This parameter adds a prefix to all tool names from a specific server.
+
+### How It Works
+
+- If `tool_prefix` is set, all tools from that server will be prefixed with `{tool_prefix}_`
+- When listing tools, the prefixed names are shown to the model
+- When calling tools, the prefix is automatically removed before sending the request to the server
+
+This allows you to use multiple servers that might have overlapping tool names without conflicts.
+
+### Example with HTTP Server
+
+```python {title="mcp_tool_prefix_http_client.py" py="3.10"}
+from pydantic_ai import Agent
+from pydantic_ai.mcp import MCPServerHTTP
+
+# Create two servers with different prefixes
+weather_server = MCPServerHTTP(
+    url='http://localhost:3001/sse',
+    tool_prefix='weather'  # Tools will be prefixed with 'weather_'
+)
+
+calculator_server = MCPServerHTTP(
+    url='http://localhost:3002/sse',
+    tool_prefix='calc'  # Tools will be prefixed with 'calc_'
+)
+
+# Both servers might have a tool named 'get_data', but they'll be exposed as:
+# - 'weather_get_data'
+# - 'calc_get_data'
+agent = Agent('openai:gpt-4o', mcp_servers=[weather_server, calculator_server])
+```
+
+### Example with Stdio Server
+
+```python {title="mcp_tool_prefix_stdio_client.py" py="3.10"}
+from pydantic_ai import Agent
+from pydantic_ai.mcp import MCPServerStdio
+
+python_server = MCPServerStdio(
+    'deno',
+    args=[
+        'run',
+        '-N',
+        'jsr:@pydantic/mcp-run-python',
+        'stdio',
+    ],
+    tool_prefix='py'  # Tools will be prefixed with 'py_'
+)
+
+js_server = MCPServerStdio(
+    'node',
+    args=[
+        'run',
+        'mcp-js-server.js',
+        'stdio',
+    ],
+    tool_prefix='js'  # Tools will be prefixed with 'js_'
+)
+
+agent = Agent('openai:gpt-4o', mcp_servers=[python_server, js_server])
+```
+
+When the model interacts with these servers, it will see the prefixed tool names, but the prefixes will be automatically handled when making tool calls.
+
 
 === File: docs/mcp/index.md ===
 # Model Context Protocol (MCP)
@@ -1755,35 +1814,22 @@ print(result.all_messages())
             SystemPromptPart(
                 content='Be a helpful assistant.',
                 timestamp=datetime.datetime(...),
-                dynamic_ref=None,
-                part_kind='system-prompt',
             ),
             UserPromptPart(
                 content='Tell me a joke.',
                 timestamp=datetime.datetime(...),
-                part_kind='user-prompt',
             ),
-        ],
-        instructions=None,
-        kind='request',
+        ]
     ),
     ModelResponse(
         parts=[
             TextPart(
-                content='Did you hear about the toothpaste scandal? They called it Colgate.',
-                part_kind='text',
+                content='Did you hear about the toothpaste scandal? They called it Colgate.'
             )
         ],
-        usage=Usage(
-            requests=1,
-            request_tokens=60,
-            response_tokens=12,
-            total_tokens=72,
-            details=None,
-        ),
+        usage=Usage(requests=1, request_tokens=60, response_tokens=12, total_tokens=72),
         model_name='gpt-4o',
         timestamp=datetime.datetime(...),
-        kind='response',
     ),
 ]
 """
@@ -1809,17 +1855,12 @@ async def main():
                     SystemPromptPart(
                         content='Be a helpful assistant.',
                         timestamp=datetime.datetime(...),
-                        dynamic_ref=None,
-                        part_kind='system-prompt',
                     ),
                     UserPromptPart(
                         content='Tell me a joke.',
                         timestamp=datetime.datetime(...),
-                        part_kind='user-prompt',
                     ),
-                ],
-                instructions=None,
-                kind='request',
+                ]
             )
         ]
         """
@@ -1840,35 +1881,22 @@ async def main():
                     SystemPromptPart(
                         content='Be a helpful assistant.',
                         timestamp=datetime.datetime(...),
-                        dynamic_ref=None,
-                        part_kind='system-prompt',
                     ),
                     UserPromptPart(
                         content='Tell me a joke.',
                         timestamp=datetime.datetime(...),
-                        part_kind='user-prompt',
                     ),
-                ],
-                instructions=None,
-                kind='request',
+                ]
             ),
             ModelResponse(
                 parts=[
                     TextPart(
-                        content='Did you hear about the toothpaste scandal? They called it Colgate.',
-                        part_kind='text',
+                        content='Did you hear about the toothpaste scandal? They called it Colgate.'
                     )
                 ],
-                usage=Usage(
-                    requests=0,
-                    request_tokens=50,
-                    response_tokens=12,
-                    total_tokens=62,
-                    details=None,
-                ),
+                usage=Usage(request_tokens=50, response_tokens=12, total_tokens=62),
                 model_name='gpt-4o',
                 timestamp=datetime.datetime(...),
-                kind='response',
             ),
         ]
         """
@@ -1906,64 +1934,40 @@ print(result2.all_messages())
             SystemPromptPart(
                 content='Be a helpful assistant.',
                 timestamp=datetime.datetime(...),
-                dynamic_ref=None,
-                part_kind='system-prompt',
             ),
             UserPromptPart(
                 content='Tell me a joke.',
                 timestamp=datetime.datetime(...),
-                part_kind='user-prompt',
             ),
-        ],
-        instructions=None,
-        kind='request',
+        ]
     ),
     ModelResponse(
         parts=[
             TextPart(
-                content='Did you hear about the toothpaste scandal? They called it Colgate.',
-                part_kind='text',
+                content='Did you hear about the toothpaste scandal? They called it Colgate.'
             )
         ],
-        usage=Usage(
-            requests=1,
-            request_tokens=60,
-            response_tokens=12,
-            total_tokens=72,
-            details=None,
-        ),
+        usage=Usage(requests=1, request_tokens=60, response_tokens=12, total_tokens=72),
         model_name='gpt-4o',
         timestamp=datetime.datetime(...),
-        kind='response',
     ),
     ModelRequest(
         parts=[
             UserPromptPart(
                 content='Explain?',
                 timestamp=datetime.datetime(...),
-                part_kind='user-prompt',
             )
-        ],
-        instructions=None,
-        kind='request',
+        ]
     ),
     ModelResponse(
         parts=[
             TextPart(
-                content='This is an excellent joke invented by Samuel Colvin, it needs no explanation.',
-                part_kind='text',
+                content='This is an excellent joke invented by Samuel Colvin, it needs no explanation.'
             )
         ],
-        usage=Usage(
-            requests=1,
-            request_tokens=61,
-            response_tokens=26,
-            total_tokens=87,
-            details=None,
-        ),
+        usage=Usage(requests=1, request_tokens=61, response_tokens=26, total_tokens=87),
         model_name='gpt-4o',
         timestamp=datetime.datetime(...),
-        kind='response',
     ),
 ]
 """
@@ -2048,64 +2052,40 @@ print(result2.all_messages())
             SystemPromptPart(
                 content='Be a helpful assistant.',
                 timestamp=datetime.datetime(...),
-                dynamic_ref=None,
-                part_kind='system-prompt',
             ),
             UserPromptPart(
                 content='Tell me a joke.',
                 timestamp=datetime.datetime(...),
-                part_kind='user-prompt',
             ),
-        ],
-        instructions=None,
-        kind='request',
+        ]
     ),
     ModelResponse(
         parts=[
             TextPart(
-                content='Did you hear about the toothpaste scandal? They called it Colgate.',
-                part_kind='text',
+                content='Did you hear about the toothpaste scandal? They called it Colgate.'
             )
         ],
-        usage=Usage(
-            requests=1,
-            request_tokens=60,
-            response_tokens=12,
-            total_tokens=72,
-            details=None,
-        ),
+        usage=Usage(requests=1, request_tokens=60, response_tokens=12, total_tokens=72),
         model_name='gpt-4o',
         timestamp=datetime.datetime(...),
-        kind='response',
     ),
     ModelRequest(
         parts=[
             UserPromptPart(
                 content='Explain?',
                 timestamp=datetime.datetime(...),
-                part_kind='user-prompt',
             )
-        ],
-        instructions=None,
-        kind='request',
+        ]
     ),
     ModelResponse(
         parts=[
             TextPart(
-                content='This is an excellent joke invented by Samuel Colvin, it needs no explanation.',
-                part_kind='text',
+                content='This is an excellent joke invented by Samuel Colvin, it needs no explanation.'
             )
         ],
-        usage=Usage(
-            requests=1,
-            request_tokens=61,
-            response_tokens=26,
-            total_tokens=87,
-            details=None,
-        ),
+        usage=Usage(requests=1, request_tokens=61, response_tokens=26, total_tokens=87),
         model_name='gemini-1.5-pro',
         timestamp=datetime.datetime(...),
-        kind='response',
     ),
 ]
 """
@@ -2203,7 +2183,7 @@ agent = Agent(model)
 
 ## Install
 
-To use OpenAI models, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `openai` optional group:
+To use OpenAI models or OpenAI-compatible APIs, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `openai` optional group:
 
 ```bash
 pip/uv-add "pydantic-ai-slim[openai]"
@@ -2211,7 +2191,7 @@ pip/uv-add "pydantic-ai-slim[openai]"
 
 ## Configuration
 
-To use `OpenAIModel` through their main API, go to [platform.openai.com](https://platform.openai.com/) and follow your nose until you find the place to generate an API key.
+To use `OpenAIModel` with the OpenAI API, go to [platform.openai.com](https://platform.openai.com/) and follow your nose until you find the place to generate an API key.
 
 ## Environment variable
 
@@ -2331,7 +2311,7 @@ You can learn more about the differences between the Responses API and Chat Comp
 
 ## OpenAI-compatible Models
 
-Many models are compatible with the OpenAI API, and can be used with `OpenAIModel` in PydanticAI.
+Many providers and models are compatible with the OpenAI API, and can be used with `OpenAIModel` in PydanticAI.
 Before getting started, check the [installation and configuration](#install) instructions above.
 
 To use another OpenAI-compatible API, you can make use of the `base_url` and `api_key` arguments from `OpenAIProvider`:
@@ -2351,7 +2331,40 @@ agent = Agent(model)
 ...
 ```
 
-You can also use the `provider` argument with a custom provider class like the `DeepSeekProvider`:
+Various providers also have their own provider classes so that you don't need to specify the base URL yourself and you can use the standard `<PROVIDER>_API_KEY` environment variable to set the API key.
+When a provider has its own provider class, you can use the `Agent("<provider>:<model>")` shorthand, e.g. `Agent("deepseek:deepseek-chat")` or `Agent("openrouter:google/gemini-2.5-pro-preview")`, instead of building the `OpenAIModel` explicitly. Similarly, you can pass the provider name as a string to the `provider` argument on `OpenAIModel` instead of building instantiating the provider class explicitly.
+
+#### Model Profile
+
+Sometimes, the provider or model you're using will have slightly different requirements than OpenAI's API or models, like having different restrictions on JSON schemas for tool definitions, or not supporting tool definitions to be marked as strict.
+
+When using an alternative provider class provided by PydanticAI, an appropriate model profile is typically selected automatically based on the model name.
+If the model you're using is not working correctly out of the box, you can tweak various aspects of how model requests are constructed by providing your own [`ModelProfile`][pydantic_ai.profiles.ModelProfile] (for behaviors shared among all model classes) or [`OpenAIModelProfile`][pydantic_ai.profiles.openai.OpenAIModelProfile] (for behaviors specific to `OpenAIModel`):
+
+```py
+from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.profiles._json_schema import InlineDefsJsonSchemaTransformer
+from pydantic_ai.profiles.openai import OpenAIModelProfile
+from pydantic_ai.providers.openai import OpenAIProvider
+
+model = OpenAIModel(
+    'model_name',
+    provider=OpenAIProvider(
+        base_url='https://<openai-compatible-api-endpoint>.com', api_key='your-api-key'
+    ),
+    profile=OpenAIModelProfile(
+        json_schema_transformer=InlineDefsJsonSchemaTransformer,  # Supported by any model class on a plain ModelProfile
+        openai_supports_strict_tool_definition=False  # Supported by OpenAIModel only, requires OpenAIModelProfile
+    )
+)
+agent = Agent(model)
+```
+
+### DeepSeek
+
+To use the [DeepSeek](https://deepseek.com) provider, first create an API key by following the [Quick Start guide](https://api-docs.deepseek.com/).
+Once you have the API key, you can use it with the `DeepSeekProvider`:
 
 ```python
 from pydantic_ai import Agent
@@ -2426,9 +2439,7 @@ result = agent.run_sync('Where were the olympics held in 2012?')
 print(result.output)
 #> city='London' country='United Kingdom'
 print(result.usage())
-"""
-Usage(requests=1, request_tokens=57, response_tokens=8, total_tokens=65, details=None)
-"""
+#> Usage(requests=1, request_tokens=57, response_tokens=8, total_tokens=65)
 ```
 
 #### Example using a remote server
@@ -2457,9 +2468,7 @@ result = agent.run_sync('Where were the olympics held in 2012?')
 print(result.output)
 #> city='London' country='United Kingdom'
 print(result.usage())
-"""
-Usage(requests=1, request_tokens=57, response_tokens=8, total_tokens=65, details=None)
-"""
+#> Usage(requests=1, request_tokens=57, response_tokens=8, total_tokens=65)
 ```
 
 1. The name of the model running on the remote server
@@ -2490,19 +2499,16 @@ agent = Agent(model)
 
 To use [OpenRouter](https://openrouter.ai), first create an API key at [openrouter.ai/keys](https://openrouter.ai/keys).
 
-Once you have the API key, you can use it with the `OpenAIProvider`:
+Once you have the API key, you can use it with the `OpenRouterProvider`:
 
 ```python
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.providers.openrouter import OpenRouterProvider
 
 model = OpenAIModel(
     'anthropic/claude-3.5-sonnet',
-    provider=OpenAIProvider(
-        base_url='https://openrouter.ai/api/v1',
-        api_key='your-openrouter-api-key',
-    ),
+    provider=OpenRouterProvider(api_key='your-openrouter-api-key'),
 )
 agent = Agent(model)
 ...
@@ -2511,16 +2517,16 @@ agent = Agent(model)
 ### Grok (xAI)
 
 Go to [xAI API Console](https://console.x.ai/) and create an API key.
-Once you have the API key, you can use it with the `OpenAIProvider`:
+Once you have the API key, you can use it with the `GrokProvider`:
 
 ```python
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.providers.grok import GrokProvider
 
 model = OpenAIModel(
     'grok-2-1212',
-    provider=OpenAIProvider(base_url='https://api.x.ai/v1', api_key='your-xai-api-key'),
+    provider=GrokProvider(api_key='your-xai-api-key'),
 )
 agent = Agent(model)
 ...
@@ -2550,19 +2556,16 @@ agent = Agent(model)
 ### Fireworks AI
 
 Go to [Fireworks.AI](https://fireworks.ai/) and create an API key in your account settings.
-Once you have the API key, you can use it with the `OpenAIProvider`:
+Once you have the API key, you can use it with the `FireworksProvider`:
 
 ```python
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.providers.fireworks import FireworksProvider
 
 model = OpenAIModel(
     'accounts/fireworks/models/qwq-32b',  # model library available at https://fireworks.ai/models
-    provider=OpenAIProvider(
-        base_url='https://api.fireworks.ai/inference/v1',
-        api_key='your-fireworks-api-key',
-    ),
+    provider=FireworksProvider(api_key='your-fireworks-api-key'),
 )
 agent = Agent(model)
 ...
@@ -2571,19 +2574,16 @@ agent = Agent(model)
 ### Together AI
 
 Go to [Together.ai](https://www.together.ai/) and create an API key in your account settings.
-Once you have the API key, you can use it with the `OpenAIProvider`:
+Once you have the API key, you can use it with the `TogetherProvider`:
 
 ```python
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.providers.together import TogetherProvider
 
 model = OpenAIModel(
     'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free',  # model library available at https://www.together.ai/models
-    provider=OpenAIProvider(
-        base_url='https://api.together.xyz/v1',
-        api_key='your-together-api-key',
-    ),
+    provider=TogetherProvider(api_key='your-together-api-key'),
 )
 agent = Agent(model)
 ...
@@ -2591,11 +2591,15 @@ agent = Agent(model)
 
 
 === File: docs/output.md ===
-"Output" refers to the final value returned from [running an agent](agents.md#running-agents) these can be either plain text or structured data.
+"Output" refers to the final value returned from [running an agent](agents.md#running-agents). This can be either plain text, [structured data](#structured-output), or the result of a [function](#output-functions) called with arguments provided by the model.
 
-The output is wrapped in [`AgentRunResult`][pydantic_ai.agent.AgentRunResult] or [`StreamedRunResult`][pydantic_ai.result.StreamedRunResult] so you can access other data like [usage][pydantic_ai.usage.Usage] of the run and [message history](message-history.md#accessing-messages-from-results)
+The output is wrapped in [`AgentRunResult`][pydantic_ai.agent.AgentRunResult] or [`StreamedRunResult`][pydantic_ai.result.StreamedRunResult] so that you can access other data, like [usage][pydantic_ai.usage.Usage] of the run and [message history](message-history.md#accessing-messages-from-results).
 
 Both `AgentRunResult` and `StreamedRunResult` are generic in the data they wrap, so typing information about the data returned by the agent is preserved.
+
+A run ends when a plain text response is received (assuming no output type is specified or `str` is one of the allowed options), or when the model responds with one of the structured output types by calling a special output tool. A run can also be cancelled if usage limits are exceeded, see [Usage Limits](agents.md#usage-limits).
+
+Here's an example using a Pydantic model as the `output_type`, forcing the model to respond with data matching our specification:
 
 ```python {title="olympics.py" line_length="90"}
 from pydantic import BaseModel
@@ -2613,32 +2617,37 @@ result = agent.run_sync('Where were the olympics held in 2012?')
 print(result.output)
 #> city='London' country='United Kingdom'
 print(result.usage())
-#> Usage(requests=1, request_tokens=57, response_tokens=8, total_tokens=65, details=None)
+#> Usage(requests=1, request_tokens=57, response_tokens=8, total_tokens=65)
 ```
 
 _(This example is complete, it can be run "as is")_
 
-Runs end when either a plain text response is received or the model calls a tool associated with one of the structured output types (run can also be cancelled if usage limits are exceeded, see [Usage Limits](agents.md#usage-limits)).
-
 ## Output data {#structured-output}
 
-When the output type is `str`, or a union including `str`, plain text responses are enabled on the model, and the raw text response from the model is used as the response data.
+The [`Agent`][pydantic_ai.Agent] class constructor takes an `output_type` argument that takes one or more types or [output functions](#output-functions). It supports both type unions and lists of types and functions.
 
-If the output type is a union with multiple members (after removing `str` from the members), each member is registered as a separate tool with the model in order to reduce the complexity of the tool schemas and maximise the chances a model will respond correctly.
+When no output type is specified, or when the output type is `str` or a union or list of types including `str`, the model is allowed to respond with plain text, and this text is used as the output data.
+If `str` is not among the allowed output types, the model is not allowed to respond with plain text and is forced to return structured data (or arguments to an output function).
+
+If the output type is a union or list with multiple members, each member (except for `str`, if it is a member) is registered with the model as a separate output tool in order to reduce the complexity of the tool schemas and maximise the chances a model will respond correctly.
 
 If the output type schema is not of type `"object"` (e.g. it's `int` or `list[int]`), the output type is wrapped in a single element object, so the schema of all tools registered with the model are object schemas.
 
 Structured outputs (like tools) use Pydantic to build the JSON schema used for the tool, and to validate the data returned by the model.
 
-!!! note "Bring on PEP-747"
-    Until [PEP-747](https://peps.python.org/pep-0747/) "Annotating Type Forms" lands, unions are not valid as `type`s in Python.
+!!! note "Type checking considerations"
+    The Agent class is generic in its output type, and this type is carried through to `AgentRunResult.output` and `StreamedRunResult.output` so that your IDE or static type checker can warn you when your code doesn't properly take into account all the possible values those outputs could have.
 
-    When creating the agent we need to `# type: ignore` the `output_type` argument, and add a type hint to tell type checkers about the type of the agent.
+    Static type checkers like pyright and mypy will do their best the infer the agent's output type from the `output_type` you've specified, but they're not always able to do so correctly when you provide functions or multiple types in a union or list, even though PydanticAI will behave correctly. When this happens, your type checker will complain even when you're confident you've passed a valid `output_type`, and you'll need to help the type checker by explicitly specifying the generic parameters on the `Agent` constructor. This is shown in the second example below and the output functions example further down.
 
-Here's an example of returning either text or a structured value
+    Specifically, there are three valid uses of `output_type` where you'll need to do this:
+    1. When using a union of types, e.g. `output_type=Foo | Bar` or in older Python, `output_type=Union[Foo, Bar]`. Until [PEP-747](https://peps.python.org/pep-0747/) "Annotating Type Forms" lands in Python 3.15, type checkers do not consider these a valid value for `output_type`. In addition to the generic parameters on the `Agent` constructor, you'll need to add `# type: ignore` to the line that passes the union to `output_type`.
+    2. With mypy: When using a list, as a functionally equivalent alternative to a union, or because you're passing in [output functions](#output-functions). Pyright does handle this correctly, and we've filed [an issue](https://github.com/python/mypy/issues/19142) with mypy to try and get this fixed.
+    3. With mypy: when using an async output function. Pyright does handle this correctly, and we've filed [an issue](https://github.com/python/mypy/issues/19143) with mypy to try and get this fixed.
+
+Here's an example of returning either text or structured data:
 
 ```python {title="box_or_error.py"}
-from typing import Union
 
 from pydantic import BaseModel
 
@@ -2652,9 +2661,9 @@ class Box(BaseModel):
     units: str
 
 
-agent: Agent[None, Union[Box, str]] = Agent(
+agent = Agent(
     'openai:gpt-4o-mini',
-    output_type=Union[Box, str],  # type: ignore
+    output_type=[Box, str],
     system_prompt=(
         "Extract me the dimensions of a box, "
         "if you can't extract all data, ask the user to try again."
@@ -2672,14 +2681,14 @@ print(result.output)
 
 _(This example is complete, it can be run "as is")_
 
-Here's an example of using a union return type which registers multiple tools, and wraps non-object schemas in an object:
+Here's an example of using a union return type, for which PydanticAI will register multiple tools and wraps non-object schemas in an object:
 
 ```python {title="colors_or_sizes.py"}
 from typing import Union
 
 from pydantic_ai import Agent
 
-agent: Agent[None, Union[list[str], list[int]]] = Agent(
+agent = Agent[None, Union[list[str], list[int]]](
     'openai:gpt-4o-mini',
     output_type=Union[list[str], list[int]],  # type: ignore
     system_prompt='Extract either colors or sizes from the shapes provided.',
@@ -2696,9 +2705,134 @@ print(result.output)
 
 _(This example is complete, it can be run "as is")_
 
-### Output validator functions
+### Output functions
+
+Instead of plain text or structured data, you may want the output of your agent run to be the result of a function called with arguments provided by the model, for example to further process or validate the data provided through the arguments (with the option to tell the model to try again), or to hand off to another agent.
+
+Output functions are similar to [function tools](tools.md), but the model is forced to call one of them, the call ends the agent run, and the result is not passed back to the model.
+
+As with tool functions, output function arguments provided by the model are validated using Pydantic, they can optionally take [`RunContext`][pydantic_ai.tools.RunContext] as the first argument, and they can raise [`ModelRetry`][pydantic_ai.exceptions.ModelRetry] to ask the model to try again with modified arguments (or with a different output type).
+
+To specify output functions, you set the agent's `output_type` to either a single function (or bound instance method), or a list of functions. The list can also contain other output types like simple scalars or entire Pydantic models.
+You typically do not want to also register your output function as a tool (using the `@agent.tool` decorator or `tools` argument), as this could confuse the model about which it should be calling.
+
+Here's an example of all of these features in action:
+
+```python {title="output_functions.py"}
+import re
+from typing import Union
+
+from pydantic import BaseModel
+
+from pydantic_ai import Agent, ModelRetry, RunContext
+from pydantic_ai._output import ToolRetryError
+from pydantic_ai.exceptions import UnexpectedModelBehavior
+
+
+class Row(BaseModel):
+    name: str
+    country: str
+
+
+tables = {
+    'capital_cities': [
+        Row(name='Amsterdam', country='Netherlands'),
+        Row(name='Mexico City', country='Mexico'),
+    ]
+}
+
+
+class SQLFailure(BaseModel):
+    """An unrecoverable failure. Only use this when you can't change the query to make it work."""
+
+    explanation: str
+
+
+def run_sql_query(query: str) -> list[Row]:
+    """Run a SQL query on the database."""
+
+    select_table = re.match(r'SELECT (.+) FROM (\w+)', query)
+    if select_table:
+        column_names = select_table.group(1)
+        if column_names != '*':
+            raise ModelRetry("Only 'SELECT *' is supported, you'll have to do column filtering manually.")
+
+        table_name = select_table.group(2)
+        if table_name not in tables:
+            raise ModelRetry(
+                f"Unknown table '{table_name}' in query '{query}'. Available tables: {', '.join(tables.keys())}."
+            )
+
+        return tables[table_name]
+
+    raise ModelRetry(f"Unsupported query: '{query}'.")
+
+
+sql_agent = Agent[None, Union[list[Row], SQLFailure]](
+    'openai:gpt-4o',
+    output_type=[run_sql_query, SQLFailure],
+    instructions='You are a SQL agent that can run SQL queries on a database.',
+)
+
+
+async def hand_off_to_sql_agent(ctx: RunContext, query: str) -> list[Row]:
+    """I take natural language queries, turn them into SQL, and run them on a database."""
+
+    # Drop the final message with the output tool call, as it shouldn't be passed on to the SQL agent
+    messages = ctx.messages[:-1]
+    try:
+        result = await sql_agent.run(query, message_history=messages)
+        output = result.output
+        if isinstance(output, SQLFailure):
+            raise ModelRetry(f'SQL agent failed: {output.explanation}')
+        return output
+    except UnexpectedModelBehavior as e:
+        # Bubble up potentially retryable errors to the router agent
+        if (cause := e.__cause__) and isinstance(cause, ToolRetryError):
+            raise ModelRetry(f'SQL agent failed: {cause.tool_retry.content}') from e
+        else:
+            raise
+
+
+class RouterFailure(BaseModel):
+    """Use me when no appropriate agent is found or the used agent failed."""
+
+    explanation: str
+
+
+router_agent = Agent[None, Union[list[Row], RouterFailure]](
+    'openai:gpt-4o',
+    output_type=[hand_off_to_sql_agent, RouterFailure],
+    instructions='You are a router to other agents. Never try to solve a problem yourself, just pass it on.',
+)
+
+result = router_agent.run_sync('Select the names and countries of all capitals')
+print(result.output)
+"""
+[
+    Row(name='Amsterdam', country='Netherlands'),
+    Row(name='Mexico City', country='Mexico'),
+]
+"""
+
+result = router_agent.run_sync('Select all pets')
+print(result.output)
+"""
+explanation = "The requested table 'pets' does not exist in the database. The only available table is 'capital_cities', which does not contain data about pets."
+"""
+
+result = router_agent.run_sync('How do I fly from Amsterdam to Mexico City?')
+print(result.output)
+"""
+explanation = 'I am not equipped to provide travel information, such as flights from Amsterdam to Mexico City.'
+"""
+```
+
+### Output validators {#output-validator-functions}
 
 Some validation is inconvenient or impossible to do in Pydantic validators, in particular when the validation requires IO and is asynchronous. PydanticAI provides a way to add validation functions via the [`agent.output_validator`][pydantic_ai.Agent.output_validator] decorator.
+
+If you want to implement separate validation logic for different output types, it's recommended to use [output functions](#output-functions) instead, to save you from having to do `isinstance` checks inside the output validator.
 
 Here's a simplified variant of the [SQL Generation example](examples/sql-gen.md):
 
@@ -2720,7 +2854,7 @@ class InvalidRequest(BaseModel):
 
 
 Output = Union[Success, InvalidRequest]
-agent: Agent[DatabaseConn, Output] = Agent(
+agent = Agent[DatabaseConn, Output](
     'google-gla:gemini-1.5-flash',
     output_type=Output,  # type: ignore
     deps_type=DatabaseConn,
@@ -2914,7 +3048,9 @@ The following examples demonstrate how to use streamed responses in PydanticAI:
 
 Function tools provide a mechanism for models to retrieve extra information to help them generate a response.
 
-They're useful when it is impractical or impossible to put all the context an agent might need into the system prompt, or when you want to make agents' behavior more deterministic or reliable by deferring some of the logic required to generate a response to another (not necessarily AI-powered) tool.
+They're useful when you want to enable the model to take some action and use the result, when it is impractical or impossible to put all the context an agent might need into the system prompt, or when you want to make agents' behavior more deterministic or reliable by deferring some of the logic required to generate a response to another (not necessarily AI-powered) tool.
+
+If you want a model to be able to call a function as its final action, without the result being sent back to the model, you can use an [output function](output.md#output-functions) instead.
 
 !!! info "Function tools vs. RAG"
     Function tools are basically the "R" of RAG (Retrieval-Augmented Generation) — they augment what the model can do by letting it request extra information.
@@ -2987,37 +3123,22 @@ print(dice_result.all_messages())
             SystemPromptPart(
                 content="You're a dice game, you should roll the die and see if the number you get back matches the user's guess. If so, tell them they're a winner. Use the player's name in the response.",
                 timestamp=datetime.datetime(...),
-                dynamic_ref=None,
-                part_kind='system-prompt',
             ),
             UserPromptPart(
                 content='My guess is 4',
                 timestamp=datetime.datetime(...),
-                part_kind='user-prompt',
             ),
-        ],
-        instructions=None,
-        kind='request',
+        ]
     ),
     ModelResponse(
         parts=[
             ToolCallPart(
-                tool_name='roll_die',
-                args={},
-                tool_call_id='pyd_ai_tool_call_id',
-                part_kind='tool-call',
+                tool_name='roll_die', args={}, tool_call_id='pyd_ai_tool_call_id'
             )
         ],
-        usage=Usage(
-            requests=1,
-            request_tokens=90,
-            response_tokens=2,
-            total_tokens=92,
-            details=None,
-        ),
+        usage=Usage(requests=1, request_tokens=90, response_tokens=2, total_tokens=92),
         model_name='gemini-1.5-flash',
         timestamp=datetime.datetime(...),
-        kind='response',
     ),
     ModelRequest(
         parts=[
@@ -3026,31 +3147,18 @@ print(dice_result.all_messages())
                 content='4',
                 tool_call_id='pyd_ai_tool_call_id',
                 timestamp=datetime.datetime(...),
-                part_kind='tool-return',
             )
-        ],
-        instructions=None,
-        kind='request',
+        ]
     ),
     ModelResponse(
         parts=[
             ToolCallPart(
-                tool_name='get_player_name',
-                args={},
-                tool_call_id='pyd_ai_tool_call_id',
-                part_kind='tool-call',
+                tool_name='get_player_name', args={}, tool_call_id='pyd_ai_tool_call_id'
             )
         ],
-        usage=Usage(
-            requests=1,
-            request_tokens=91,
-            response_tokens=4,
-            total_tokens=95,
-            details=None,
-        ),
+        usage=Usage(requests=1, request_tokens=91, response_tokens=4, total_tokens=95),
         model_name='gemini-1.5-flash',
         timestamp=datetime.datetime(...),
-        kind='response',
     ),
     ModelRequest(
         parts=[
@@ -3059,29 +3167,20 @@ print(dice_result.all_messages())
                 content='Anne',
                 tool_call_id='pyd_ai_tool_call_id',
                 timestamp=datetime.datetime(...),
-                part_kind='tool-return',
             )
-        ],
-        instructions=None,
-        kind='request',
+        ]
     ),
     ModelResponse(
         parts=[
             TextPart(
-                content="Congratulations Anne, you guessed correctly! You're a winner!",
-                part_kind='text',
+                content="Congratulations Anne, you guessed correctly! You're a winner!"
             )
         ],
         usage=Usage(
-            requests=1,
-            request_tokens=92,
-            response_tokens=12,
-            total_tokens=104,
-            details=None,
+            requests=1, request_tokens=92, response_tokens=12, total_tokens=104
         ),
         model_name='gemini-1.5-flash',
         timestamp=datetime.datetime(...),
-        kind='response',
     ),
 ]
 """
@@ -3349,8 +3448,6 @@ print(test_model.last_model_request_parameters.function_tools)
             'title': 'Foobar',
             'type': 'object',
         },
-        outer_typed_dict_key=None,
-        strict=None,
     )
 ]
 """
@@ -3453,14 +3550,106 @@ print(test_model.last_model_request_parameters.function_tools)
             'required': ['name'],
             'type': 'object',
         },
-        outer_typed_dict_key=None,
-        strict=None,
     )
 ]
 """
 ```
 
 _(This example is complete, it can be run "as is")_
+
+## Agent-wide Dynamic Tool Preparation {#prepare-tools}
+
+In addition to per-tool `prepare` methods, you can also define an agent-wide `prepare_tools` function. This function is called at each step of a run and allows you to filter or modify the list of all tool definitions available to the agent for that step. This is especially useful if you want to enable or disable multiple tools at once, or apply global logic based on the current context.
+
+The `prepare_tools` function should be of type [`ToolsPrepareFunc`][pydantic_ai.tools.ToolsPrepareFunc], which takes the [`RunContext`][pydantic_ai.tools.RunContext] and a list of [`ToolDefinition`][pydantic_ai.tools.ToolDefinition], and returns a new list of tool definitions (or `None` to disable all tools for that step).
+
+!!! note
+    The list of tool definitions passed to `prepare_tools` includes both regular tools and tools from any MCP servers attached to the agent.
+
+Here's an example that makes all tools strict if the model is an OpenAI model:
+
+```python {title="agent_prepare_tools_customize.py" noqa="I001"}
+from dataclasses import replace
+from typing import Union
+
+from pydantic_ai import Agent, RunContext
+from pydantic_ai.tools import ToolDefinition
+from pydantic_ai.models.test import TestModel
+
+
+async def turn_on_strict_if_openai(
+    ctx: RunContext[None], tool_defs: list[ToolDefinition]
+) -> Union[list[ToolDefinition], None]:
+    if ctx.model.system == 'openai':
+        return [replace(tool_def, strict=True) for tool_def in tool_defs]
+    return tool_defs
+
+
+test_model = TestModel()
+agent = Agent(test_model, prepare_tools=turn_on_strict_if_openai)
+
+
+@agent.tool_plain
+def echo(message: str) -> str:
+    return message
+
+
+agent.run_sync('testing...')
+assert test_model.last_model_request_parameters.function_tools[0].strict is None
+
+# Set the system attribute of the test_model to 'openai'
+test_model._system = 'openai'
+
+agent.run_sync('testing with openai...')
+assert test_model.last_model_request_parameters.function_tools[0].strict
+```
+
+_(This example is complete, it can be run "as is")_
+
+Here's another example that conditionally filters out the tools by name if the dependency (`ctx.deps`) is `True`:
+
+```python {title="agent_prepare_tools_filter_out.py" noqa="I001"}
+from typing import Union
+
+from pydantic_ai import Agent, RunContext
+from pydantic_ai.tools import Tool, ToolDefinition
+
+
+def launch_potato(target: str) -> str:
+    return f'Potato launched at {target}!'
+
+
+async def filter_out_tools_by_name(
+    ctx: RunContext[bool], tool_defs: list[ToolDefinition]
+) -> Union[list[ToolDefinition], None]:
+    if ctx.deps:
+        return [tool_def for tool_def in tool_defs if tool_def.name != 'launch_potato']
+    return tool_defs
+
+
+agent = Agent(
+    'test',
+    tools=[Tool(launch_potato)],
+    prepare_tools=filter_out_tools_by_name,
+    deps_type=bool,
+)
+
+result = agent.run_sync('testing...', deps=False)
+print(result.output)
+#> {"launch_potato":"Potato launched at a!"}
+result = agent.run_sync('testing...', deps=True)
+print(result.output)
+#> success (no tool calls)
+```
+
+_(This example is complete, it can be run "as is")_
+
+You can use `prepare_tools` to:
+
+- Dynamically enable or disable tools based on the current model, dependencies, or other context
+- Modify tool definitions globally (e.g., set all tools to strict mode, change descriptions, etc.)
+
+If both per-tool `prepare` and agent-wide `prepare_tools` are used, the per-tool `prepare` is applied first to each tool, and then `prepare_tools` is called with the resulting list of tool definitions.
 
 
 ## Tool Execution and Retries {#tool-retries}

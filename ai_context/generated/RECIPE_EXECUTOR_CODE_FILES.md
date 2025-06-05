@@ -1,11 +1,11 @@
-# recipe_executor
+# recipe-executor/recipe_executor
 
 [collect-files]
 
-**Search:** ['recipe_executor']
-**Exclude:** ['.venv', 'node_modules', '.git', '__pycache__', '*.pyc', '*.ruff_cache']
+**Search:** ['recipe-executor/recipe_executor']
+**Exclude:** ['.venv', 'node_modules', '*.lock', '.git', '__pycache__', '*.pyc', '*.ruff_cache', 'logs', 'output']
 **Include:** ['README.md', 'pyproject.toml', '.env.example']
-**Date:** 5/15/2025, 8:40:28 AM
+**Date:** 6/2/2025, 8:33:45 AM
 **Files:** 26
 
 === File: .env.example ===
@@ -33,200 +33,373 @@ AZURE_USE_MANAGED_IDENTITY=false
 === File: README.md ===
 # Recipe Tool
 
-A tool for executing recipe-like natural language instructions to create complex workflows. This project includes a recipe executor and a recipe creator, both of which can be used to automate tasks and generate new recipes.
+**Turn natural language ideas into reliable, automated workflows** - Recipe Tool transforms your ideas written in plain English into executable "recipes" that orchestrate complex multi-step workflows. Write what you want to accomplish, and Recipe Tool generates the JSON recipe that makes it happen - reproducibly and reliably.
 
-**NOTE** This project is a very early, experimental project that is being explored in the open. There is no support offered and it will include frequent breaking changes. This project may be abandoned at any time. If you find it useful, it is strongly encouraged to create a fork and remain on a commit that works for your needs unless you are willing to make the necessary changes to use the latest version. This project is currently **NOT** accepting contributions and suggestions; please see the [dev_guidance.md](docs/dev_guidance.md) for more details.
+**NOTE** This project is a very early, experimental project that is being explored in the open. There is no support offered and it will include frequent breaking changes. This project may be abandoned at any time. If you find it useful, it is strongly encouraged to create a fork and remain on a commit that works for your needs unless you are willing to make the necessary changes to use the latest version. This project is currently **NOT** accepting contributions and suggestions; please see the [docs/dev_guidance.md](docs/dev_guidance.md) for more details.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-## Getting Started
+## From Ideas to Automated Workflows
 
-```bash
-git clone https://github.com/microsoft/recipe-tool.git
-cd recipe-tool
+Recipe Tool bridges the gap between natural language and automation:
+
+1. **Start with an idea** - Write what you want in plain English/markdown
+2. **Generate a recipe** - Recipe Tool creates a JSON workflow from your description
+3. **Execute reliably** - The JSON recipe runs deterministically, combining LLM calls with structured logic
+
+Think of recipes as the "compiled" version of your ideas - they capture your intent in a format that executes reliably every time, using "more code than model" for reproducible results.
+
+## What are Recipes?
+
+Under the hood, recipes are JSON files that define automated workflows. Each recipe contains:
+
+- **Steps** that execute in sequence (or in parallel)
+- **Context** that flows between steps, accumulating results
+- **Templates** using Liquid syntax for dynamic content
+- **Rich step types**: LLM generation, file I/O, tool calls, conditionals, loops, sub-recipes
+
+Here's what gets generated when you ask to "read a file and create a summary":
+
+```json
+{
+  "name": "summarize_file",
+  "steps": [
+    {
+      "step_type": "read_files",
+      "paths": ["{{ input }}"]
+    },
+    {
+      "step_type": "llm_generate",
+      "prompt": "Summarize this content:\n\n{{ file_contents[0] }}"
+    },
+    {
+      "step_type": "write_files",
+      "files": [
+        {
+          "path": "summary.md",
+          "content": "{{ llm_output }}"
+        }
+      ]
+    }
+  ]
+}
 ```
 
-## Overview
+Example use cases:
 
-This project is designed to help you automate tasks and generate new recipes using a flexible orchestration system. It consists of two main components: the Recipe Executor and the Recipe Creator.
+- 📝 Generate complete documents from outlines
+- 🔧 Transform natural language ideas into executable recipes
+- 💻 Generate code from specifications (this project generates its own code!)
+- 🔄 Automate complex multi-step workflows
+- 🤖 Create AI-powered automation pipelines
 
-### Recipe Executor
+## Quick Start
 
-The Recipe Executor is a tool for executing recipes defined in JSON format. It can perform various tasks, including file reading/writing, LLM generation, and sub-recipe execution. The executor uses a context system to manage shared state and data between steps.
+```bash
+# Clone and install
+git clone https://github.com/microsoft/recipe-tool.git
+cd recipe-tool
+make install
 
-### Recipe Creator
+# Try an example recipe
+recipe-tool --execute recipes/example_simple/code_from_spec_recipe.json \
+   spec_file=recipes/example_simple/specs/hello-world-spec.txt
+```
 
-The Recipe Creator is a tool for generating new recipes based on a recipe idea. It uses the Recipe Executor to create JSON recipe files that can be executed later. The creator can also take additional files as input to provide context for the recipe generation.
+See more examples in [recipes](recipes/) directory.
 
-## Key Components
+## Architecture
 
-- **Recipe Executor**: Executes recipes defined in JSON format.
-- **Recipe Creator**: Generates new recipes based on a recipe idea.
-- **Recipe Format**: JSON-based recipe definitions with steps
-- **Context Management**: Manages shared state and data between steps in a recipe.
-- **Step Types**: Various operations including file reading/writing, LLM generation, and sub-recipe execution
-  - **LLM Integration**: Supports various LLMs for generating content and executing tasks.
-  - **File Management**: Reads and writes files as part of the recipe execution process.
-  - **Sub-Recipe Execution**: Allows for executing other recipes as part of a larger recipe.
-- **Logging**: Provides logging for debugging and tracking recipe execution.
-- **Template Rendering**: Liquid templates for dynamic content generation
+The system is built as a layered architecture where each layer adds capabilities:
 
-## Setup and Installation
+```mermaid
+graph TD
+    subgraph "User Interfaces"
+        UI1[Document Generator App]
+        UI2[Recipe Executor App]
+        UI3[Recipe Tool App]
+    end
+
+    subgraph "CLI Layer"
+        CLI[Recipe Tool<br/>creation + execution]
+    end
+
+    subgraph "Core Engine"
+        RE[Recipe Executor<br/>pure execution engine]
+    end
+
+    subgraph "Recipe Step Types"
+        ST1[LLM Generate]
+        ST2[Read/Write Files]
+        ST3[MCP Tool Calls]
+        ST4[Execute Sub-Recipe]
+        ST5[Set Context]
+    end
+
+    subgraph "External Services"
+        MCP1[Any MCP Server]
+        LLM[LLM APIs]
+    end
+
+    UI1 --> CLI
+    UI2 --> RE
+    UI3 --> CLI
+    CLI --> RE
+
+    RE --> ST1
+    RE --> ST2
+    RE --> ST3
+    RE --> ST4
+    RE --> ST5
+
+    ST3 -.->|calls| MCP1
+    ST1 -.->|calls| LLM
+
+    style RE stroke:#f0f,stroke-width:4px
+    style CLI stroke:#00f,stroke-width:3px
+```
+
+### Self-Generating Architecture
+
+The Recipe Executor's code is entirely generated from markdown blueprints using the codebase generator recipe. This "self-hosting" demonstrates the framework's power - it can build itself!
+
+```mermaid
+graph LR
+    B[Blueprints<br/>markdown specs] -->|codebase generator<br/>recipe| C[Recipe Executor<br/>source code]
+    C -->|executes| B
+
+    style C stroke:#f0f,stroke-width:4px
+```
+
+## Core Components
+
+### Execution Layer
+
+- **Recipe Executor** (`recipe-executor/`) - Pure execution engine for JSON recipes. This is the foundation that executes recipe steps including LLM calls, file operations, and flow control.
+- **Recipe Tool** (`recipe-tool/`) - Adds recipe creation capabilities on top of Recipe Executor. Can generate new recipes from natural language descriptions.
+
+### User Interfaces
+
+- **Document Generator App** (`apps/document-generator/`) - Specialized UI for document creation workflows with live preview
+- **Recipe Executor App** (`apps/recipe-executor/`) - Debug-focused interface for recipe execution with step-by-step visibility
+- **Recipe Tool App** (`apps/recipe-tool/`) - Full-featured UI combining recipe creation and execution with MCP server integration
+
+### MCP Servers
+
+These servers expose functionality via the Model Context Protocol:
+
+- **Recipe Tool MCP Server** (`mcp-servers/recipe-tool/`) - Exposes the recipe-tool CLI functionality (execute/create) as MCP tools for AI assistants
+- **Python Code Tools MCP** (`mcp-servers/python-code-tools/`) - Provides Python linting capabilities using Ruff for AI assistants to lint code snippets or entire projects
+
+## Installation
 
 ### Prerequisites
 
-Recommended installers:
-
-- Linux: apt or your distribution's package manager
-- macOS: [brew](https://brew.sh/)
-- Windows: [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/)
-
-#### Azure CLI for Azure OpenAI using Managed Identity
-
-If you plan on using Azure OpenAI with Managed Identity, you need to install the Azure CLI. Follow the instructions for your platform:
-
-- **Windows**: [Install the Azure CLI on Windows](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows)
-- **Linux**: [Install the Azure CLI on Linux](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-linux)
-- **macOS**: [Install the Azure CLI on macOS](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-macos)
-
-Execute the following command to log in:
-
-```bash
-az login
-```
-
-This command will open a browser window for you to log in. If you are using Managed Identity, ensure that your Azure CLI is configured to use the correct identity.
-
-#### Development tools
-
-The core dependencies you need to install are:
-
-- `make` - for scripting installation steps of the various projects within this repo
-- `uv` - for managing installed versions of `python` - for installing python dependencies
-- `GitHub cli` - for `ai-context-files` manipulation tool
-
-Linux:
-
-    # make is installed by default on linux
-    sudo apt update && sudo apt install pipx && sudo apt install gh
-    pipx ensurepath
-    pipx install uv
-
-macOS:
-
-    brew install make
-    brew install uv
-    brew install gh
-
-Windows:
-
-    winget install ezwinports.make -e
-    winget install astral-sh.uv  -e
-    winget install GitHub.cli -e
+- **`uv`** - Python dependency management ([install guide](https://github.com/astral-sh/uv))
+- **`GitHub CLI`** - For ai-context-files tool ([install guide](https://cli.github.com/))
+- **Azure CLI** (optional) - For Azure OpenAI with Managed Identity ([install guide](https://docs.microsoft.com/cli/azure/install-azure-cli))
 
 ### Setup Steps
 
-1. Clone this repository
-2. Copy the environment file and configure your API keys:
-   ```bash
-   cp .env.example .env
-   # Edit .env to add your OPENAI_API_KEY and other optional API keys
-   ```
-3. Run the setup command to create a virtual environment and install dependencies:
-   ```bash
-   make
-   ```
-4. Activate the virtual environment:
-   - **Linux/macOS**:
-     ```bash
-     source .venv/bin/activate
-     ```
-   - **Windows**:
-     ```bash
-     .\.venv\Scripts\activate
-     ```
-5. Test the installation by running the example recipe:
-   ```bash
-   make recipe-executor-create
-   ```
-
-## Using the Makefile
-
-The project includes several useful make commands:
-
-- **`make`**: Sets up the virtual environment and installs all dependencies
-- **`make ai-context-files`**: Builds AI context files for recipe executor development
-- **`make recipe-executor-create`**: Generates recipe executor code from scratch using the recipe itself
-- **`make recipe-executor-edit`**: Revises existing recipe executor code using recipes
-
-## Running Recipes via Command Line
-
-Execute a recipe using the command line interface:
-
 ```bash
-recipe-tool --execute path/to/your/recipe.json
+# 1. Clone the repository
+git clone https://github.com/microsoft/recipe-tool.git
+cd recipe-tool
+
+# 2. Configure environment (optional)
+cp .env.example .env
+# Edit .env to add your OPENAI_API_KEY and other API keys
+
+# 3. Install all dependencies
+make install
+
+# 4. Activate virtual environment
+source .venv/bin/activate    # Linux/Mac
+# OR: .venv\Scripts\activate  # Windows
+
+# 5. Verify installation
+recipe-tool --help
 ```
 
-You can also pass context variables:
+## Usage Guide
 
-```bash
-recipe-tool --execute path/to/your/recipe.json context_key=value context_key2=value2
+### Basic Workflow
+
+1. **Write your idea** in natural language (markdown file):
+
+```markdown
+# Analyze Code Quality
+
+Read all Python files in the project and:
+
+1. Count lines of code per file
+2. Identify files with no docstrings
+3. Create a report with recommendations
 ```
 
-Example:
+2. **Generate a recipe** from your idea:
 
 ```bash
-recipe-tool --execute recipes/example_simple/test_recipe.json model=azure/o4-mini
+recipe-tool --create code_quality_idea.md
+# Creates: output/analyze_code_quality.json
 ```
 
-## Creating New Recipes from a Recipe Idea
-
-Create a new recipe using the command line interface:
+3. **Execute the recipe** (now it's reproducible!):
 
 ```bash
-recipe-tool --create path/to/your/recipe_idea.txt
+recipe-tool --execute output/analyze_code_quality.json project_path=./myproject
 ```
 
-This will generate a new recipe file based on the provided idea.
-You can also pass additional files for context:
+### Direct Execution
+
+If you already have JSON recipes:
 
 ```bash
-recipe-tool --create path/to/your/recipe_idea.txt files=path/to/other_file.txt,path/to/another_file.txt
+# Execute with context variables
+recipe-tool --execute recipes/example_simple/test_recipe.json model=azure/gpt-4o
 ```
 
-Example:
+### Web Interfaces
+
+For a more visual experience:
 
 ```bash
-recipe-tool --create recipes/recipe_creator/prompts/sample_recipe_idea.md
-
-# Test it out
-recipe-tool --execute output/analyze_codebase.json input=ai_context/generated/RECIPE_EXECUTOR_CODE_FILES.md,ai_context/generated/RECIPE_EXECUTOR_RECIPE_FILES.md
+recipe-tool-app          # Full UI for creation and execution
+recipe-executor-app      # Debug-focused execution UI
+document-generator-app   # Document workflow UI
 ```
 
-## Project Structure
+### Advanced Workflows
 
-The project contains:
+#### Code Generation from Blueprints
 
-- **`recipe_tool.py`**: The main entry point for the command line interface for both recipe execution and creation
-- **`recipe_executor/`**: Core implementation with modules for execution, context management, and steps
-- **`recipes/`**: Recipe definition files that can be executed
+The Recipe Executor generates its own code:
 
-## Building from Recipes
+```bash
+# Generate all Recipe Executor code
+recipe-tool --execute recipes/codebase_generator/codebase_generator_recipe.json
 
-One of the more interesting aspects of this project is that it can _generate its own code using recipes_:
+# Generate specific component
+recipe-tool --execute recipes/codebase_generator/codebase_generator_recipe.json \
+   component_id=steps.llm_generate
+```
 
-1. To generate the code from scratch:
+#### Document Generation
 
-   ```bash
-   make recipe-executor-create
-   ```
+Create structured documents from outlines:
 
-2. To edit/revise existing code:
-   ```bash
-   make recipe-executor-edit
-   ```
+```bash
+recipe-tool --execute recipes/document_generator/document_generator_recipe.json \
+   outline=path/to/outline.json
+```
 
-This demonstrates the power of the Recipe Executor for code generation and maintenance tasks.
+#### MCP Server Integration
+
+For AI assistants (Claude Desktop, etc.):
+
+```bash
+# Recipe capabilities via MCP
+recipe-tool-mcp-server stdio              # For Claude Desktop
+recipe-tool-mcp-server sse --port 3002    # For HTTP clients
+
+# Python linting via MCP
+python-code-tools stdio
+```
+
+## Recipe Catalog
+
+### 🔨 Code Generation Recipes
+
+- **Codebase Generator** (`recipes/codebase_generator/`) - Transforms markdown blueprints into working code
+
+  - Used to generate the Recipe Executor itself!
+  - Sub-recipes for component processing and code generation
+
+- **Blueprint Generators** (`recipes/experimental/blueprint_generator_v*/`) - Creates blueprints from ideas
+  - Multiple versions exploring different approaches
+  - Generates component specifications and documentation
+
+### 📄 Document Creation Recipes
+
+- **Document Generator** (`recipes/document_generator/`) - Creates documents from structured outlines
+  - Handles multi-section documents with resource loading
+  - Supports markdown output with live preview in UI
+
+### 🛠️ Utility Recipes
+
+- **Recipe Creator** (`recipes/recipe_creator/`) - Generates recipes from natural language descriptions
+
+  - Core functionality of the recipe-tool CLI
+  - Analyzes ideas and creates executable JSON recipes
+
+- **File Generation** (`recipes/utilities/`) - Various file processing utilities
+  - Generate content from file collections
+  - Template-based file creation
+
+### 📚 Example Recipes
+
+- **Simple Examples** (`recipes/example_simple/`) - Basic recipe patterns
+- **Complex Examples** (`recipes/example_complex/`) - Advanced workflows with sub-recipes
+- **Template Examples** (`recipes/example_templates/`) - Using Liquid templates
+- **MCP Examples** (`recipes/example_mcp_step/`) - MCP server integration
+- **Content Writer** (`recipes/example_content_writer/`) - LLM content generation
+
+## Development
+
+### Getting Started
+
+```bash
+# Workspace commands
+make help              # Show all available commands
+make workspace-info    # Show project structure
+make doctor           # Check workspace health
+
+# Code quality
+make lint             # Run linting
+make format           # Format code
+make test             # Run tests
+
+# AI development
+make ai-context-files # Generate context for AI assistants
+```
+
+### VSCode Integration
+
+The project includes a comprehensive VSCode workspace configuration:
+
+- Multi-root workspace organized by project type
+- Pre-configured Python paths and testing
+- Ruff integration for code quality
+- Recommended extensions
+
+```bash
+code recipe-tool-workspace.code-workspace
+```
+
+### Self-Generating Code
+
+The Recipe Executor generates its own code from blueprints:
+
+1. **Write blueprints** in `blueprints/recipe_executor/components/`
+2. **Run generator** `recipe-tool --execute recipes/codebase_generator/codebase_generator_recipe.json`
+3. **Code is generated** in `recipe-executor/`
+
+This demonstrates the power of the modular approach - the tool builds itself!
+
+## Philosophy & Design
+
+This project embodies a modular, AI-driven approach to software development:
+
+- **Modular Design**: Small, self-contained components with clear interfaces
+- **AI-First Development**: Components are generated from specifications
+- **Regeneration over Editing**: Prefer regenerating components to manual edits
+- **Human as Architect**: Humans design specifications, AI builds the code
+
+See [ai_context/MODULAR_DESIGN_PHILOSOPHY.md](ai_context/MODULAR_DESIGN_PHILOSOPHY.md) and [ai_context/IMPLEMENTATION_PHILOSOPHY.md](ai_context/IMPLEMENTATION_PHILOSOPHY.md) for detailed philosophy.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
@@ -254,60 +427,45 @@ Any use of third-party trademarks or logos are subject to those third-party's po
 
 
 === File: pyproject.toml ===
-[project]
-name = "recipe-tool"
-version = "0.1.0"
-description = "A tool for executing natural language recipe-like instructions"
-authors = [{ name = "MADE:Explorations Team" }]
-license = "MIT"
-readme = "README.md"
-requires-python = ">=3.11"
-dependencies = [
-    "azure-identity>=1.21.0",
-    "dotenv>=0.9.9",
-    "jsonschema>=4.23.0",
-    "pydantic-ai-slim[anthropic,openai,mcp]>=0.1.3",
-    "pydantic-settings>=2.8.1",
-    "python-code-tools>=0.1.0",
-    "python-dotenv>=1.1.0",
-    "python-liquid>=2.0.1",
-    "pyyaml>=6.0.2",
+[tool.uv.workspace]
+members = [
+    "recipe-tool",
+    "recipe-executor",
+    "apps/document-generator",
+    "apps/recipe-executor",
+    "apps/recipe-tool",
+    "mcp-servers/docs-server",
+    "mcp-servers/python-code-tools",
+    "mcp-servers/recipe-tool",
 ]
+
+[tool.uv.sources]
+# Core libraries
+recipe-executor = { workspace = true }
+recipe-tool = { workspace = true }
+# Apps
+document-generator-app = { workspace = true }
+recipe-executor-app = { workspace = true }
+recipe-tool-app = { workspace = true }
+# MCP servers
+docs-server = { workspace = true }
+python-code-tools = { workspace = true }
+recipe-tool-mcp-server = { workspace = true }
 
 [dependency-groups]
 dev = [
     "build>=1.2.2.post1",
     "debugpy>=1.8.14",
-    "pyright>=1.1.389",
+    "pyright>=1.1.400",
     "pytest>=8.3.5",
     "pytest-cov>=6.1.1",
     "pytest-mock>=3.14.0",
-    "ruff>=0.11.2",
+    "ruff>=0.11.10",
     "twine>=6.1.0",
 ]
 
-[project.scripts]
-recipe-executor = "recipe_executor.main:main"
-recipe-tool = "recipe_tool:main"
-python-code-tools = "python_code_tools.cli:main"
 
-[tool.uv]
-package = true
-
-[tool.uv.sources]
-python-code-tools = { path = "mcp-servers/python-code-tools", editable = true }
-recipe-tool-mcp-server = { path = "mcp-servers/recipe-tool", editable = true }
-document-generator-ui = { path = "document_generator_ui", editable = true }
-
-[tool.hatch.build.targets.wheel]
-packages = ["recipe_executor"]
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-
-=== File: recipe_executor/context.py ===
+=== File: recipe-executor/recipe_executor/context.py ===
 from typing import Any, Dict, Iterator, Optional
 import copy
 import json
@@ -330,12 +488,8 @@ class Context(ContextProtocol):
         config: Optional[Dict[str, Any]] = None,
     ) -> None:
         # Deep copy initial data to avoid side effects from external modifications
-        self._artifacts: Dict[str, Any] = (
-            copy.deepcopy(artifacts) if artifacts is not None else {}
-        )
-        self._config: Dict[str, Any] = (
-            copy.deepcopy(config) if config is not None else {}
-        )
+        self._artifacts: Dict[str, Any] = copy.deepcopy(artifacts) if artifacts is not None else {}
+        self._config: Dict[str, Any] = copy.deepcopy(config) if config is not None else {}
 
     def __getitem__(self, key: str) -> Any:
         try:
@@ -405,7 +559,7 @@ class Context(ContextProtocol):
         self._config = copy.deepcopy(config)
 
 
-=== File: recipe_executor/executor.py ===
+=== File: recipe-executor/recipe_executor/executor.py ===
 import os
 import logging
 import inspect
@@ -487,16 +641,14 @@ class Executor(ExecutorProtocol):
             summary = recipe_model.model_dump()
         except Exception:
             summary = {}
-        step_count = len(getattr(recipe_model, 'steps', []))
+        step_count = len(getattr(recipe_model, "steps", []))
         self.logger.debug(f"Recipe loaded: {summary}. Steps count: {step_count}")
 
         # Execute each step sequentially
         for idx, step in enumerate(recipe_model.steps):  # type: ignore
             step_type = step.type
             config = step.config or {}
-            self.logger.debug(
-                f"Executing step {idx} of type '{step_type}' with config: {config}"
-            )
+            self.logger.debug(f"Executing step {idx} of type '{step_type}' with config: {config}")
 
             if step_type not in STEP_REGISTRY:
                 raise ValueError(f"Unknown step type '{step_type}' at index {idx}")
@@ -517,7 +669,7 @@ class Executor(ExecutorProtocol):
         self.logger.debug("All recipe steps completed successfully.")
 
 
-=== File: recipe_executor/llm_utils/azure_openai.py ===
+=== File: recipe-executor/recipe_executor/llm_utils/azure_openai.py ===
 import logging
 import os
 from typing import Optional
@@ -626,7 +778,7 @@ def get_azure_openai_model(
     return model
 
 
-=== File: recipe_executor/llm_utils/llm.py ===
+=== File: recipe-executor/recipe_executor/llm_utils/llm.py ===
 import os
 import time
 import logging
@@ -649,20 +801,20 @@ def get_model(model_id: str, logger: logging.Logger) -> Union[OpenAIModel, Anthr
     Expected format: 'provider/model_name' or 'provider/model_name/deployment_name'.
     Supported providers: openai, azure, anthropic, ollama.
     """
-    parts = model_id.split('/')
+    parts = model_id.split("/")
     if len(parts) < 2:
         raise ValueError(f"Invalid model_id format: '{model_id}'")
     provider = parts[0].lower()
 
     # OpenAI provider
-    if provider == 'openai':
+    if provider == "openai":
         if len(parts) != 2:
             raise ValueError(f"Invalid OpenAI model_id: '{model_id}'")
         model_name = parts[1]
         return OpenAIModel(model_name)
 
     # Azure OpenAI provider
-    if provider == 'azure':
+    if provider == "azure":
         if len(parts) == 2:
             model_name = parts[1]
             deployment_name = None
@@ -671,23 +823,21 @@ def get_model(model_id: str, logger: logging.Logger) -> Union[OpenAIModel, Anthr
             deployment_name = parts[2]
         else:
             raise ValueError(f"Invalid Azure model_id: '{model_id}'")
-        return get_azure_openai_model(
-            logger=logger, model_name=model_name, deployment_name=deployment_name
-        )
+        return get_azure_openai_model(logger=logger, model_name=model_name, deployment_name=deployment_name)
 
     # Anthropic provider
-    if provider == 'anthropic':
+    if provider == "anthropic":
         if len(parts) != 2:
             raise ValueError(f"Invalid Anthropic model_id: '{model_id}'")
         model_name = parts[1]
         return AnthropicModel(model_name)
 
     # Ollama provider (uses OpenAIModel with custom provider URL)
-    if provider == 'ollama':
+    if provider == "ollama":
         if len(parts) != 2:
             raise ValueError(f"Invalid Ollama model_id: '{model_id}'")
         model_name = parts[1]
-        base_url = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
+        base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
         provider_obj = OpenAIProvider(base_url=f"{base_url}/v1")
         return OpenAIModel(model_name=model_name, provider=provider_obj)
 
@@ -699,6 +849,7 @@ class LLM:
     Unified interface for interacting with various LLM providers
     and optional MCP servers.
     """
+
     def __init__(
         self,
         logger: logging.Logger,
@@ -728,18 +879,19 @@ class LLM:
 
         # Info log: model selection
         try:
-            provider = model_id.split('/', 1)[0]
+            provider = model_id.split("/", 1)[0]
         except Exception:
-            provider = 'unknown'
-        self.logger.info(
-            "LLM generate using provider=%s model_id=%s", provider, model_id
-        )
+            provider = "unknown"
+        self.logger.info("LLM generate using provider=%s model_id=%s", provider, model_id)
 
         # Debug log: request details
-        output_name = getattr(output_type, '__name__', str(output_type))
+        output_name = getattr(output_type, "__name__", str(output_type))
         self.logger.debug(
             "LLM request payload prompt=%r model_id=%s max_tokens=%s output_type=%s",
-            prompt, model_id, tokens, output_name
+            prompt,
+            model_id,
+            tokens,
+            output_name,
         )
 
         # Initialize model
@@ -751,12 +903,12 @@ class LLM:
 
         # Prepare agent
         agent_kwargs = {
-            'model': model_instance,
-            'output_type': output_type,
-            'mcp_servers': servers,
+            "model": model_instance,
+            "output_type": output_type,
+            "mcp_servers": servers,
         }
         if tokens is not None:
-            agent_kwargs['model_settings'] = ModelSettings(max_tokens=tokens)
+            agent_kwargs["model_settings"] = ModelSettings(max_tokens=tokens)
 
         agent: Agent = Agent(**agent_kwargs)  # type: ignore
 
@@ -766,9 +918,7 @@ class LLM:
             async with agent.run_mcp_servers():
                 result = await agent.run(prompt)
         except Exception as e:
-            self.logger.error(
-                "LLM call failed for model_id=%s error=%s", model_id, str(e)
-            )
+            self.logger.error("LLM call failed for model_id=%s error=%s", model_id, str(e))
             raise
         end_time = time.time()
 
@@ -789,9 +939,7 @@ class LLM:
                 usage.response_tokens,
             )
         else:
-            self.logger.info(
-                "LLM result time=%.3f sec (usage unavailable)", duration
-            )
+            self.logger.info("LLM result time=%.3f sec (usage unavailable)", duration)
 
         # Debug log: raw result
         self.logger.debug("LLM raw result: %r", result)
@@ -799,7 +947,7 @@ class LLM:
         return result.output
 
 
-=== File: recipe_executor/llm_utils/mcp.py ===
+=== File: recipe-executor/recipe_executor/llm_utils/mcp.py ===
 import os
 import logging
 from typing import Any, Dict, Optional
@@ -815,10 +963,7 @@ except ImportError:
 __all__ = ["get_mcp_server"]
 
 
-def get_mcp_server(
-    logger: logging.Logger,
-    config: Dict[str, Any]
-) -> MCPServer:
+def get_mcp_server(logger: logging.Logger, config: Dict[str, Any]) -> MCPServer:
     """
     Create an MCP server client based on the provided configuration.
 
@@ -847,11 +992,11 @@ def get_mcp_server(
     logger.debug("MCP server configuration: %s", masked)
 
     # HTTP transport
-    if 'url' in config:
-        url = config.get('url')
+    if "url" in config:
+        url = config.get("url")
         if not isinstance(url, str) or not url:
             raise ValueError("HTTP MCP server requires a non-empty 'url' string")
-        headers = config.get('headers')
+        headers = config.get("headers")
         if headers is not None and not isinstance(headers, dict):
             raise ValueError("HTTP MCP server 'headers' must be a dict if provided")
 
@@ -864,16 +1009,16 @@ def get_mcp_server(
         return server
 
     # Stdio transport
-    if 'command' in config:
-        command = config.get('command')
+    if "command" in config:
+        command = config.get("command")
         if not isinstance(command, str) or not command:
             raise ValueError("Stdio MCP server requires a non-empty 'command' string")
 
-        args = config.get('args')
+        args = config.get("args")
         if not isinstance(args, list) or not all(isinstance(a, str) for a in args):
             raise ValueError("Stdio MCP server 'args' must be a list of strings")
 
-        env_cfg = config.get('env')
+        env_cfg = config.get("env")
         env: Optional[Dict[str, str]] = None
         if env_cfg is not None:
             if not isinstance(env_cfg, dict):
@@ -893,18 +1038,13 @@ def get_mcp_server(
                 else:
                     env[k] = v
 
-        working_dir = config.get('working_dir')
+        working_dir = config.get("working_dir")
         if working_dir is not None and not isinstance(working_dir, str):
             raise ValueError("Stdio MCP server 'working_dir' must be a string if provided")
 
         logger.info("Creating stdio MCP server with command: %s %s", command, args)
         try:
-            server = MCPServerStdio(
-                command=command,
-                args=args,
-                cwd=working_dir,
-                env=env
-            )
+            server = MCPServerStdio(command=command, args=args, cwd=working_dir, env=env)
         except Exception as exc:
             raise RuntimeError(f"Failed to create stdio MCP server: {exc}") from exc
         return server
@@ -913,15 +1053,14 @@ def get_mcp_server(
     raise ValueError("Invalid MCP server configuration: must contain 'url' for HTTP or 'command' for stdio transport")
 
 
-=== File: recipe_executor/logger.py ===
+=== File: recipe-executor/recipe_executor/logger.py ===
 import os
 import sys
 import logging
 from typing import Any
 
-def init_logger(
-    log_dir: str = "logs", stdio_log_level: str = "INFO"
-) -> logging.Logger:
+
+def init_logger(log_dir: str = "logs", stdio_log_level: str = "INFO") -> logging.Logger:
     """
     Initializes a logger that writes to stdout and to log files (debug/info/error).
     Clears existing logs on each run.
@@ -953,8 +1092,7 @@ def init_logger(
 
     # Define formatter for all handlers
     formatter = logging.Formatter(
-        fmt="%(asctime)s.%(msecs)03d [%(levelname)s] (%(filename)s:%(lineno)d) %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
+        fmt="%(asctime)s.%(msecs)03d [%(levelname)s] (%(filename)s:%(lineno)d) %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
     )
 
     # Set up file handlers: debug.log, info.log, error.log
@@ -993,7 +1131,7 @@ def init_logger(
     return logger
 
 
-=== File: recipe_executor/main.py ===
+=== File: recipe-executor/recipe_executor/main.py ===
 import argparse
 import asyncio
 import logging
@@ -1032,29 +1170,10 @@ async def main_async() -> None:
 
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Recipe Executor CLI")
-    parser.add_argument(
-        "recipe_path",
-        type=str,
-        help="Path to the recipe file to execute"
-    )
-    parser.add_argument(
-        "--log-dir",
-        type=str,
-        default="logs",
-        help="Directory for log files"
-    )
-    parser.add_argument(
-        "--context",
-        action="append",
-        default=[],
-        help="Context artifact values as key=value pairs"
-    )
-    parser.add_argument(
-        "--config",
-        action="append",
-        default=[],
-        help="Static configuration values as key=value pairs"
-    )
+    parser.add_argument("recipe_path", type=str, help="Path to the recipe file to execute")
+    parser.add_argument("--log-dir", type=str, default="logs", help="Directory for log files")
+    parser.add_argument("--context", action="append", default=[], help="Context artifact values as key=value pairs")
+    parser.add_argument("--config", action="append", default=[], help="Static configuration values as key=value pairs")
     args = parser.parse_args()
 
     # Ensure log directory exists
@@ -1095,17 +1214,11 @@ async def main_async() -> None:
     try:
         await executor.execute(args.recipe_path, context)
     except Exception as exec_err:
-        logger.error(
-            "An error occurred during recipe execution: %s", exec_err,
-            exc_info=True
-        )
+        logger.error("An error occurred during recipe execution: %s", exec_err, exc_info=True)
         raise
     duration = time.time() - start_time
 
-    logger.info(
-        "Recipe execution completed successfully in %.2f seconds",
-        duration
-    )
+    logger.info("Recipe execution completed successfully in %.2f seconds", duration)
 
 
 def main() -> None:
@@ -1129,12 +1242,13 @@ if __name__ == "__main__":  # pragma: no cover
     main()
 
 
-=== File: recipe_executor/models.py ===
+=== File: recipe-executor/recipe_executor/models.py ===
 """
 Models for Recipe Executor system.
 
 Defines Pydantic models for file specifications and recipe structures.
 """
+
 from typing import Any, Dict, List, Union
 
 from pydantic import BaseModel
@@ -1148,6 +1262,7 @@ class FileSpec(BaseModel):
         content: The content of the file, which can be a string,
                  a mapping, or a list of mappings for structured outputs.
     """
+
     path: str
     content: Union[str, Dict[str, Any], List[Dict[str, Any]]]
 
@@ -1159,6 +1274,7 @@ class RecipeStep(BaseModel):
         type: The type of the recipe step.
         config: Dictionary containing configuration for the step.
     """
+
     type: str
     config: Dict[str, Any]
 
@@ -1169,9 +1285,11 @@ class Recipe(BaseModel):
     Attributes:
         steps: A list of steps defining the recipe.
     """
+
     steps: List[RecipeStep]
 
-=== File: recipe_executor/protocols.py ===
+
+=== File: recipe-executor/recipe_executor/protocols.py ===
 """
 Protocols definitions for the Recipe Executor system.
 
@@ -1183,6 +1301,7 @@ This module provides structural interfaces (Protocols) for core components:
 These serve as the single source of truth for component contracts, enabling loose coupling
 and clear type annotations without introducing direct dependencies on concrete implementations.
 """
+
 from typing import Protocol, runtime_checkable, Any, Dict, Iterator, Union
 from pathlib import Path
 from logging import Logger
@@ -1198,44 +1317,31 @@ class ContextProtocol(Protocol):
     Methods mirror built-in dict behaviors plus cloning and serialization.
     """
 
-    def __getitem__(self, key: str) -> Any:
-        ...
+    def __getitem__(self, key: str) -> Any: ...
 
-    def __setitem__(self, key: str, value: Any) -> None:
-        ...
+    def __setitem__(self, key: str, value: Any) -> None: ...
 
-    def __delitem__(self, key: str) -> None:
-        ...
+    def __delitem__(self, key: str) -> None: ...
 
-    def __contains__(self, key: str) -> bool:
-        ...
+    def __contains__(self, key: str) -> bool: ...
 
-    def __iter__(self) -> Iterator[str]:
-        ...
+    def __iter__(self) -> Iterator[str]: ...
 
-    def __len__(self) -> int:
-        ...
+    def __len__(self) -> int: ...
 
-    def get(self, key: str, default: Any = None) -> Any:
-        ...
+    def get(self, key: str, default: Any = None) -> Any: ...
 
-    def clone(self) -> "ContextProtocol":
-        ...
+    def clone(self) -> "ContextProtocol": ...
 
-    def dict(self) -> Dict[str, Any]:
-        ...
+    def dict(self) -> Dict[str, Any]: ...
 
-    def json(self) -> str:
-        ...
+    def json(self) -> str: ...
 
-    def keys(self) -> Iterator[str]:
-        ...
+    def keys(self) -> Iterator[str]: ...
 
-    def get_config(self) -> Dict[str, Any]:
-        ...
+    def get_config(self) -> Dict[str, Any]: ...
 
-    def set_config(self, config: Dict[str, Any]) -> None:
-        ...
+    def set_config(self, config: Dict[str, Any]) -> None: ...
 
 
 @runtime_checkable
@@ -1247,11 +1353,9 @@ class StepProtocol(Protocol):
     exposes an asynchronous execute method.
     """
 
-    def __init__(self, logger: Logger, config: Dict[str, Any]) -> None:
-        ...
+    def __init__(self, logger: Logger, config: Dict[str, Any]) -> None: ...
 
-    async def execute(self, context: ContextProtocol) -> None:
-        ...
+    async def execute(self, context: ContextProtocol) -> None: ...
 
 
 @runtime_checkable
@@ -1262,24 +1366,23 @@ class ExecutorProtocol(Protocol):
     The executor runs a recipe given its definition and a context.
     """
 
-    def __init__(self, logger: Logger) -> None:
-        ...
+    def __init__(self, logger: Logger) -> None: ...
 
     async def execute(
         self,
         recipe: Union[str, Path, Recipe],
         context: ContextProtocol,
-    ) -> None:
-        ...
+    ) -> None: ...
 
 
-=== File: recipe_executor/steps/__init__.py ===
+=== File: recipe-executor/recipe_executor/steps/__init__.py ===
 """
 Package for recipe execution steps.
 
 This module imports all standard step implementations and registers them
 in the global STEP_REGISTRY for dynamic lookup by the executor.
 """
+
 from recipe_executor.steps.registry import STEP_REGISTRY
 from recipe_executor.steps.conditional import ConditionalStep
 from recipe_executor.steps.execute_recipe import ExecuteRecipeStep
@@ -1318,7 +1421,7 @@ __all__ = [
 ]
 
 
-=== File: recipe_executor/steps/base.py ===
+=== File: recipe-executor/recipe_executor/steps/base.py ===
 """
 Base step component for the Recipe Executor.
 Defines a generic BaseStep class and the base Pydantic StepConfig.
@@ -1382,7 +1485,7 @@ class BaseStep(Generic[StepConfigType]):
         raise NotImplementedError(f"{self.__class__.__name__} must implement the execute method")
 
 
-=== File: recipe_executor/steps/conditional.py ===
+=== File: recipe-executor/recipe_executor/steps/conditional.py ===
 import logging
 import os
 import re
@@ -1403,12 +1506,14 @@ class ConditionalConfig(StepConfig):
         if_true: Optional branch configuration when condition is true.
         if_false: Optional branch configuration when condition is false.
     """
+
     condition: Any
     if_true: Optional[Dict[str, Any]] = None
     if_false: Optional[Dict[str, Any]] = None
 
 
 # Utility functions for condition evaluation
+
 
 def file_exists(path: Any) -> bool:
     """Check if a given path exists on the filesystem."""
@@ -1455,9 +1560,7 @@ def not_(val: Any) -> bool:
     return not bool(val)
 
 
-def evaluate_condition(
-    expr: Any, context: ContextProtocol, logger: logging.Logger
-) -> bool:
+def evaluate_condition(expr: Any, context: ContextProtocol, logger: logging.Logger) -> bool:
     """
     Render and evaluate a condition expression against the context.
     Supports boolean literals, file checks, comparisons, and logical operations.
@@ -1481,7 +1584,7 @@ def evaluate_condition(
 
     # Boolean literal handling
     if lowered in ("true", "false"):
-        result = (lowered == "true")
+        result = lowered == "true"
         logger.debug("Interpreted boolean literal '%s' as %s", text, result)
         return result
 
@@ -1522,9 +1625,7 @@ class ConditionalStep(BaseStep[ConditionalConfig]):
     Step that branches execution based on a boolean condition.
     """
 
-    def __init__(
-        self, logger: logging.Logger, config: Dict[str, Any]
-    ) -> None:
+    def __init__(self, logger: logging.Logger, config: Dict[str, Any]) -> None:
         config_model = ConditionalConfig.model_validate(config)
         super().__init__(logger, config_model)
 
@@ -1550,9 +1651,7 @@ class ConditionalStep(BaseStep[ConditionalConfig]):
         else:
             self.logger.debug("No branch to execute for this condition result")
 
-    async def _execute_branch(
-        self, branch: Dict[str, Any], context: ContextProtocol
-    ) -> None:
+    async def _execute_branch(self, branch: Dict[str, Any], context: ContextProtocol) -> None:
         steps: List[Any] = branch.get("steps") or []
         if not isinstance(steps, list):
             self.logger.debug("Branch 'steps' is not a list, skipping execution")
@@ -1570,18 +1669,14 @@ class ConditionalStep(BaseStep[ConditionalConfig]):
 
             step_cls = STEP_REGISTRY.get(step_type)
             if step_cls is None:
-                raise RuntimeError(
-                    f"Unknown step type in conditional branch: {step_type}"
-                )
+                raise RuntimeError(f"Unknown step type in conditional branch: {step_type}")
 
-            self.logger.debug(
-                "Executing step '%s' in conditional branch", step_type
-            )
+            self.logger.debug("Executing step '%s' in conditional branch", step_type)
             step_instance = step_cls(self.logger, step_conf)
             await step_instance.execute(context)
 
 
-=== File: recipe_executor/steps/execute_recipe.py ===
+=== File: recipe-executor/recipe_executor/steps/execute_recipe.py ===
 import os
 import json
 from typing import Any, Dict
@@ -1625,6 +1720,7 @@ class ExecuteRecipeConfig(StepConfig):
         recipe_path: Path to the sub-recipe to execute (templateable).
         context_overrides: Optional values to override in the context.
     """
+
     recipe_path: str
     context_overrides: Dict[str, Any] = {}
 
@@ -1635,7 +1731,7 @@ class ExecuteRecipeStep(BaseStep[ExecuteRecipeConfig]):
     def __init__(
         self,
         logger,  # type: ignore[valid-type]
-        config: Dict[str, Any]
+        config: Dict[str, Any],
     ) -> None:
         validated: ExecuteRecipeConfig = ExecuteRecipeConfig.model_validate(config)
         super().__init__(logger, validated)
@@ -1668,12 +1764,10 @@ class ExecuteRecipeStep(BaseStep[ExecuteRecipeConfig]):
         except Exception as exc:
             # Log and propagate with context
             self.logger.error(f"Error executing sub-recipe '{rendered_path}': {exc}")
-            raise RuntimeError(
-                f"Failed to execute sub-recipe '{rendered_path}': {exc}"
-            ) from exc
+            raise RuntimeError(f"Failed to execute sub-recipe '{rendered_path}': {exc}") from exc
 
 
-=== File: recipe_executor/steps/llm_generate.py ===
+=== File: recipe-executor/recipe_executor/steps/llm_generate.py ===
 import logging
 from typing import Any, Dict, List, Optional, Union
 
@@ -1845,7 +1939,7 @@ class LLMGenerateStep(BaseStep[LLMGenerateConfig]):
             raise
 
 
-=== File: recipe_executor/steps/loop.py ===
+=== File: recipe-executor/recipe_executor/steps/loop.py ===
 import asyncio
 import logging
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -1861,6 +1955,7 @@ class LoopStepConfig(StepConfig):
     """
     Configuration for LoopStep.
     """
+
     items: Union[str, List[Any], Dict[Any, Any]]
     item_key: str
     max_concurrency: int = 1
@@ -1874,9 +1969,8 @@ class LoopStep(BaseStep[LoopStepConfig]):
     """
     LoopStep: iterate over a collection, execute substeps for each item.
     """
-    def __init__(
-        self, logger: logging.Logger, config: Dict[str, Any]
-    ) -> None:
+
+    def __init__(self, logger: logging.Logger, config: Dict[str, Any]) -> None:
         # Validate configuration via Pydantic
         validated = LoopStepConfig.model_validate(config)
         super().__init__(logger, validated)
@@ -1897,9 +1991,7 @@ class LoopStep(BaseStep[LoopStepConfig]):
         if items_obj is None:
             raise ValueError(f"LoopStep: Items '{items_def}' not found in context.")
         if not isinstance(items_obj, (list, dict)):
-            raise ValueError(
-                f"LoopStep: Items must be a list or dict, got {type(items_obj).__name__}."
-            )
+            raise ValueError(f"LoopStep: Items must be a list or dict, got {type(items_obj).__name__}.")
 
         # Flatten items into list of (key, value)
         if isinstance(items_obj, list):
@@ -1909,9 +2001,7 @@ class LoopStep(BaseStep[LoopStepConfig]):
 
         total = len(items_list)
         max_c = self.config.max_concurrency
-        self.logger.info(
-            f"LoopStep: Processing {total} items with max_concurrency={max_c}."
-        )
+        self.logger.info(f"LoopStep: Processing {total} items with max_concurrency={max_c}.")
 
         # Handle empty collection
         if total == 0:
@@ -1922,9 +2012,7 @@ class LoopStep(BaseStep[LoopStepConfig]):
 
         # Prepare result and error placeholders
         results: Union[List[Any], Dict[Any, Any]] = [] if isinstance(items_obj, list) else {}
-        errors: Union[List[Dict[str, Any]], Dict[Any, Dict[str, Any]]] = (
-            [] if isinstance(items_obj, list) else {}
-        )
+        errors: Union[List[Dict[str, Any]], Dict[Any, Dict[str, Any]]] = [] if isinstance(items_obj, list) else {}
 
         # Concurrency control: None => unlimited, else semaphore
         semaphore: Optional[asyncio.Semaphore]
@@ -2040,9 +2128,7 @@ class LoopStep(BaseStep[LoopStepConfig]):
             context[f"{self.config.result_key}__errors"] = errors
 
         error_count = len(errors) if isinstance(errors, (list, dict)) else 0
-        self.logger.info(
-            f"LoopStep: Completed {completed}/{total} items. Errors: {error_count}."
-        )
+        self.logger.info(f"LoopStep: Completed {completed}/{total} items. Errors: {error_count}.")
 
 
 def _resolve_path(path: str, context: ContextProtocol) -> Any:
@@ -2050,7 +2136,7 @@ def _resolve_path(path: str, context: ContextProtocol) -> Any:
     Resolve a dot-notated path against the context or nested dicts.
     """
     current: Any = context
-    for part in path.split('.'):
+    for part in path.split("."):
         if isinstance(current, ContextProtocol):
             current = current.get(part, None)
         elif isinstance(current, dict):
@@ -2062,10 +2148,11 @@ def _resolve_path(path: str, context: ContextProtocol) -> Any:
     return current
 
 
-=== File: recipe_executor/steps/mcp.py ===
+=== File: recipe-executor/recipe_executor/steps/mcp.py ===
 """
 MCPStep component for invoking tools on remote MCP servers and storing results in context.
 """
+
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -2090,6 +2177,7 @@ class MCPConfig(StepConfig):  # type: ignore
         arguments: Arguments to pass to the tool as a dictionary.
         result_key: Context key under which to store the tool result.
     """
+
     server: Dict[str, Any]
     tool_name: str
     arguments: Dict[str, Any]
@@ -2100,6 +2188,7 @@ class MCPStep(BaseStep[MCPConfig]):  # type: ignore
     """
     Step that connects to an MCP server, invokes a tool, and stores the result in the context.
     """
+
     def __init__(self, logger: logging.Logger, config: Dict[str, Any]) -> None:
         cfg = MCPConfig.model_validate(config)  # type: ignore
         super().__init__(logger, cfg)
@@ -2185,41 +2274,31 @@ class MCPStep(BaseStep[MCPConfig]):  # type: ignore
             async with client_cm as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as session:
                     await session.initialize()
-                    self.logger.debug(
-                        f"Invoking tool '{tool_name}' with arguments {arguments}"
-                    )
+                    self.logger.debug(f"Invoking tool '{tool_name}' with arguments {arguments}")
                     try:
                         result: CallToolResult = await session.call_tool(
                             name=tool_name,
                             arguments=arguments,
                         )
                     except Exception as e:
-                        raise ValueError(
-                            f"Tool invocation failed for '{tool_name}' on {service_desc}: {e}"
-                        ) from e
+                        raise ValueError(f"Tool invocation failed for '{tool_name}' on {service_desc}: {e}") from e
         except ValueError:
             # Propagate invocation errors
             raise
         except Exception as e:
-            raise ValueError(
-                f"Failed to call tool '{tool_name}' on {service_desc}: {e}"
-            ) from e
+            raise ValueError(f"Failed to call tool '{tool_name}' on {service_desc}: {e}") from e
 
         # Convert result to a dictionary
         try:
             result_dict: Dict[str, Any] = result.__dict__  # type: ignore
         except Exception:
-            result_dict = {
-                attr: getattr(result, attr)
-                for attr in dir(result)
-                if not attr.startswith("_")
-            }
+            result_dict = {attr: getattr(result, attr) for attr in dir(result) if not attr.startswith("_")}
 
         # Store result in context
         context[self.config.result_key] = result_dict
 
 
-=== File: recipe_executor/steps/parallel.py ===
+=== File: recipe-executor/recipe_executor/steps/parallel.py ===
 import asyncio
 import logging
 from typing import Any, Dict, List, Optional, Set
@@ -2237,6 +2316,7 @@ class ParallelConfig(StepConfig):
         max_concurrency: Maximum number of substeps to run concurrently. 0 means unlimited.
         delay: Optional delay (in seconds) between launching each substep.
     """
+
     substeps: List[Dict[str, Any]]
     max_concurrency: int = 0
     delay: float = 0.0
@@ -2254,10 +2334,7 @@ class ParallelStep(BaseStep[ParallelConfig]):
         max_conc: int = self.config.max_concurrency
         delay: float = self.config.delay
 
-        self.logger.info(
-            f"Starting ParallelStep: {total} substeps, "
-            f"max_concurrency={max_conc}, delay={delay}"
-        )
+        self.logger.info(f"Starting ParallelStep: {total} substeps, max_concurrency={max_conc}, delay={delay}")
 
         if total == 0:
             self.logger.info("ParallelStep has no substeps to execute. Skipping.")
@@ -2274,17 +2351,13 @@ class ParallelStep(BaseStep[ParallelConfig]):
         async def run_substep(idx: int, spec: Dict[str, Any]) -> None:
             sub_logger = self.logger.getChild(f"substep_{idx}")
             try:
-                sub_logger.debug(
-                    f"Cloning context and preparing substep {idx} ({spec.get('type')})"
-                )
+                sub_logger.debug(f"Cloning context and preparing substep {idx} ({spec.get('type')})")
                 sub_context = context.clone()
 
                 step_type = spec.get("type")
                 step_cfg = spec.get("config", {})
                 if not step_type or step_type not in STEP_REGISTRY:
-                    raise RuntimeError(
-                        f"Unknown or missing step type '{step_type}' for substep {idx}"
-                    )
+                    raise RuntimeError(f"Unknown or missing step type '{step_type}' for substep {idx}")
                 StepClass = STEP_REGISTRY[step_type]
                 step_instance: StepProtocol = StepClass(sub_logger, step_cfg)
 
@@ -2297,9 +2370,7 @@ class ParallelStep(BaseStep[ParallelConfig]):
                 if failure["exc"] is None:
                     failure["exc"] = exc
                     failure["idx"] = idx
-                sub_logger.error(
-                    f"Substep {idx} failed: {exc}", exc_info=True
-                )
+                sub_logger.error(f"Substep {idx} failed: {exc}", exc_info=True)
                 raise
 
             finally:
@@ -2308,9 +2379,7 @@ class ParallelStep(BaseStep[ParallelConfig]):
         # Launch substeps with concurrency control and optional delay
         for idx, spec in enumerate(substeps):
             if failure["exc"]:
-                self.logger.debug(
-                    f"Fail-fast: aborting launch of remaining substeps at index {idx}"
-                )
+                self.logger.debug(f"Fail-fast: aborting launch of remaining substeps at index {idx}")
                 break
 
             await semaphore.acquire()
@@ -2328,34 +2397,26 @@ class ParallelStep(BaseStep[ParallelConfig]):
         done: Set[asyncio.Task] = set()
         pending: Set[asyncio.Task] = set()
         try:
-            done, pending = await asyncio.wait(
-                tasks, return_when=asyncio.FIRST_EXCEPTION
-            )
+            done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
         except Exception:
             # Should not happen; tasks errors handled below
             pass
 
         if failure["exc"]:
             failed_idx: Optional[int] = failure.get("idx")
-            self.logger.error(
-                f"A substep failed at index {failed_idx}; cancelling remaining tasks"
-            )
+            self.logger.error(f"A substep failed at index {failed_idx}; cancelling remaining tasks")
             for p in pending:
                 p.cancel()
             await asyncio.gather(*pending, return_exceptions=True)
-            raise RuntimeError(
-                f"ParallelStep aborted due to failure in substep {failed_idx}"
-            ) from failure["exc"]
+            raise RuntimeError(f"ParallelStep aborted due to failure in substep {failed_idx}") from failure["exc"]
 
         # All succeeded; ensure finalization
         await asyncio.gather(*done)
         success_count: int = len(done)
-        self.logger.info(
-            f"Completed ParallelStep: {success_count}/{total} substeps succeeded"
-        )
+        self.logger.info(f"Completed ParallelStep: {success_count}/{total} substeps succeeded")
 
 
-=== File: recipe_executor/steps/read_files.py ===
+=== File: recipe-executor/recipe_executor/steps/read_files.py ===
 import json
 import logging
 import os
@@ -2380,6 +2441,7 @@ class ReadFilesConfig(StepConfig):
             - "concat" (default): Concatenate all files with newlines between filename headers + content
             - "dict": Store a dictionary with file paths as keys and content as values
     """
+
     path: Union[str, List[str]]
     content_key: str
     optional: bool = False
@@ -2484,13 +2546,14 @@ class ReadFilesStep(BaseStep[ReadFilesConfig]):
         self.logger.info(f"Stored file content under key '{rendered_key}'")
 
 
-=== File: recipe_executor/steps/registry.py ===
+=== File: recipe-executor/recipe_executor/steps/registry.py ===
 """
 Registry for mapping step type names to their implementation classes.
 
 This registry is a simple global dictionary. Steps register themselves by
 updating this mapping, allowing dynamic lookup based on the step type name.
 """
+
 from typing import Dict, Type
 
 from recipe_executor.steps.base import BaseStep
@@ -2499,7 +2562,7 @@ from recipe_executor.steps.base import BaseStep
 STEP_REGISTRY: Dict[str, Type[BaseStep]] = {}
 
 
-=== File: recipe_executor/steps/set_context.py ===
+=== File: recipe-executor/recipe_executor/steps/set_context.py ===
 from typing import Any, Dict, List, Literal, Union
 import logging
 
@@ -2528,6 +2591,7 @@ class SetContextConfig(StepConfig):
                    • "overwrite" (default) – replace the existing value
                    • "merge" – combine the existing and new values
     """
+
     key: str
     value: Union[str, List[Any], Dict[str, Any]]
     nested_render: bool = False
@@ -2538,6 +2602,7 @@ class SetContextStep(BaseStep[SetContextConfig]):
     """
     Step to set or update an artifact in the execution context.
     """
+
     def __init__(self, logger: logging.Logger, config: Dict[str, Any]) -> None:
         super().__init__(logger, SetContextConfig.model_validate(config))
 
@@ -2563,13 +2628,9 @@ class SetContextStep(BaseStep[SetContextConfig]):
         else:
             raise ValueError(f"Unknown if_exists strategy: '{strategy}'")
 
-        self.logger.info(
-            f"SetContextStep: key='{key}', strategy='{strategy}', existed={existed}"
-        )
+        self.logger.info(f"SetContextStep: key='{key}', strategy='{strategy}', existed={existed}")
 
-    def _render_value(
-        self, raw: Any, context: ContextProtocol, nested: bool
-    ) -> Any:
+    def _render_value(self, raw: Any, context: ContextProtocol, nested: bool) -> Any:
         """
         Recursively render Liquid templates in strings, lists, and dicts.
 
@@ -2626,7 +2687,7 @@ class SetContextStep(BaseStep[SetContextConfig]):
         return [old, new]
 
 
-=== File: recipe_executor/steps/write_files.py ===
+=== File: recipe-executor/recipe_executor/steps/write_files.py ===
 import json
 import logging
 import os
@@ -2647,6 +2708,7 @@ class WriteFilesConfig(StepConfig):
         files: Optional direct list of dicts with 'path'/'content' or their key references.
         root: Base directory for output files.
     """
+
     files_key: Optional[str] = None
     files: Optional[List[Dict[str, Any]]] = None
     root: str = "."
@@ -2759,9 +2821,7 @@ class WriteFilesStep(BaseStep[WriteFilesConfig]):
                     try:
                         text = json.dumps(content, ensure_ascii=False, indent=2)
                     except Exception as err:
-                        raise ValueError(
-                            f"Failed to serialize content for '{final_path}': {err}"
-                        )
+                        raise ValueError(f"Failed to serialize content for '{final_path}': {err}")
                 else:
                     # Convert None to empty string, others to string if not already
                     if content is None:
@@ -2787,10 +2847,11 @@ class WriteFilesStep(BaseStep[WriteFilesConfig]):
                 raise
 
 
-=== File: recipe_executor/utils/models.py ===
+=== File: recipe-executor/recipe_executor/utils/models.py ===
 """
 Utility functions for generating Pydantic models from JSON-Schema object definitions.
 """
+
 from typing import Any, Dict, List, Optional, Tuple, Type
 
 from pydantic import BaseModel, create_model
@@ -2798,9 +2859,7 @@ from pydantic import BaseModel, create_model
 __all__ = ["json_object_to_pydantic_model"]
 
 
-def json_object_to_pydantic_model(
-    schema: Dict[str, Any], model_name: str = "SchemaModel"
-) -> Type[BaseModel]:
+def json_object_to_pydantic_model(schema: Dict[str, Any], model_name: str = "SchemaModel") -> Type[BaseModel]:
     """
     Convert a JSON-Schema object fragment into a Pydantic BaseModel subclass.
 
@@ -2840,9 +2899,7 @@ def json_object_to_pydantic_model(
 
     counter = _Counter()
 
-    def _parse_field(
-        field_schema: Dict[str, Any], field_name: str, parent_name: str
-    ) -> Tuple[Any, Any]:
+    def _parse_field(field_schema: Dict[str, Any], field_name: str, parent_name: str) -> Tuple[Any, Any]:
         # Ensure valid schema fragment
         if not isinstance(field_schema, dict):
             raise ValueError(f"Schema for field '{field_name}' must be a dictionary.")
@@ -2868,9 +2925,7 @@ def json_object_to_pydantic_model(
         if ftype in ("array", "list"):
             items = field_schema.get("items")
             if not isinstance(items, dict):
-                raise ValueError(
-                    f"Array field '{field_name}' missing valid 'items' schema."
-                )
+                raise ValueError(f"Array field '{field_name}' missing valid 'items' schema.")
             item_type, _ = _parse_field(items, f"{field_name}_item", parent_name)
             return List[item_type], ...
         # Fallback
@@ -2911,7 +2966,7 @@ def json_object_to_pydantic_model(
     return _build_model(schema, model_name)
 
 
-=== File: recipe_executor/utils/templates.py ===
+=== File: recipe-executor/recipe_executor/utils/templates.py ===
 """
 Utility functions for rendering Liquid templates using context data.
 
@@ -2919,6 +2974,7 @@ This module provides a `render_template` function that uses the Python Liquid te
 to render strings with variables sourced from a context object implementing ContextProtocol.
 Custom filters (e.g., snakecase) and extra filters (json, datetime) are enabled via the environment.
 """
+
 import re
 from typing import Any
 
@@ -2934,6 +2990,7 @@ __all__ = ["render_template"]
 _env = Environment(autoescape=False, extra=True)
 
 # Register a custom `snakecase` filter
+
 
 def _snakecase(value: Any) -> str:
     """
@@ -2955,6 +3012,7 @@ def _snakecase(value: Any) -> str:
     s = re.sub(r"__+", "_", s)
     # Strip leading/trailing underscores
     return s.strip("_")
+
 
 _env.filters["snakecase"] = _snakecase
 
@@ -2981,14 +3039,9 @@ def render_template(text: str, context: ContextProtocol) -> str:
         return rendered
     except LiquidError as e:
         # Liquid-specific errors
-        raise ValueError(
-            f"Liquid template rendering error: {e}. "
-            f"Template: {text!r}. Context: {context.dict()!r}"
-        )
+        raise ValueError(f"Liquid template rendering error: {e}. Template: {text!r}. Context: {context.dict()!r}")
     except Exception as e:
         # Generic errors
-        raise ValueError(
-            f"Error rendering template: {e}. "
-            f"Template: {text!r}. Context: {context.dict()!r}"
-        )
+        raise ValueError(f"Error rendering template: {e}. Template: {text!r}. Context: {context.dict()!r}")
+
 

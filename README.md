@@ -1,199 +1,372 @@
 # Recipe Tool
 
-A tool for executing recipe-like natural language instructions to create complex workflows. This project includes a recipe executor and a recipe creator, both of which can be used to automate tasks and generate new recipes.
+**Turn natural language ideas into reliable, automated workflows** - Recipe Tool transforms your ideas written in plain English into executable "recipes" that orchestrate complex multi-step workflows. Write what you want to accomplish, and Recipe Tool generates the JSON recipe that makes it happen - reproducibly and reliably.
 
-**NOTE** This project is a very early, experimental project that is being explored in the open. There is no support offered and it will include frequent breaking changes. This project may be abandoned at any time. If you find it useful, it is strongly encouraged to create a fork and remain on a commit that works for your needs unless you are willing to make the necessary changes to use the latest version. This project is currently **NOT** accepting contributions and suggestions; please see the [dev_guidance.md](docs/dev_guidance.md) for more details.
+**NOTE** This project is a very early, experimental project that is being explored in the open. There is no support offered and it will include frequent breaking changes. This project may be abandoned at any time. If you find it useful, it is strongly encouraged to create a fork and remain on a commit that works for your needs unless you are willing to make the necessary changes to use the latest version. This project is currently **NOT** accepting contributions and suggestions; please see the [docs/dev_guidance.md](docs/dev_guidance.md) for more details.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-## Getting Started
+## From Ideas to Automated Workflows
 
-```bash
-git clone https://github.com/microsoft/recipe-tool.git
-cd recipe-tool
+Recipe Tool bridges the gap between natural language and automation:
+
+1. **Start with an idea** - Write what you want in plain English/markdown
+2. **Generate a recipe** - Recipe Tool creates a JSON workflow from your description
+3. **Execute reliably** - The JSON recipe runs deterministically, combining LLM calls with structured logic
+
+Think of recipes as the "compiled" version of your ideas - they capture your intent in a format that executes reliably every time, using "more code than model" for reproducible results.
+
+## What are Recipes?
+
+Under the hood, recipes are JSON files that define automated workflows. Each recipe contains:
+
+- **Steps** that execute in sequence (or in parallel)
+- **Context** that flows between steps, accumulating results
+- **Templates** using Liquid syntax for dynamic content
+- **Rich step types**: LLM generation, file I/O, tool calls, conditionals, loops, sub-recipes
+
+Here's what gets generated when you ask to "read a file and create a summary":
+
+```json
+{
+  "name": "summarize_file",
+  "steps": [
+    {
+      "step_type": "read_files",
+      "paths": ["{{ input }}"]
+    },
+    {
+      "step_type": "llm_generate",
+      "prompt": "Summarize this content:\n\n{{ file_contents[0] }}"
+    },
+    {
+      "step_type": "write_files",
+      "files": [
+        {
+          "path": "summary.md",
+          "content": "{{ llm_output }}"
+        }
+      ]
+    }
+  ]
+}
 ```
 
-## Overview
+Example use cases:
 
-This project is designed to help you automate tasks and generate new recipes using a flexible orchestration system. It consists of two main components: the Recipe Executor and the Recipe Creator.
+- 📝 Generate complete documents from outlines
+- 🔧 Transform natural language ideas into executable recipes
+- 💻 Generate code from specifications (this project generates its own code!)
+- 🔄 Automate complex multi-step workflows
+- 🤖 Create AI-powered automation pipelines
 
-### Recipe Executor
+## Quick Start
 
-The Recipe Executor is a tool for executing recipes defined in JSON format. It can perform various tasks, including file reading/writing, LLM generation, and sub-recipe execution. The executor uses a context system to manage shared state and data between steps.
+```bash
+# Clone and install
+git clone https://github.com/microsoft/recipe-tool.git
+cd recipe-tool
+make install
 
-### Recipe Creator
+# Try an example recipe
+recipe-tool --execute recipes/example_simple/code_from_spec_recipe.json \
+   spec_file=recipes/example_simple/specs/hello-world-spec.txt
+```
 
-The Recipe Creator is a tool for generating new recipes based on a recipe idea. It uses the Recipe Executor to create JSON recipe files that can be executed later. The creator can also take additional files as input to provide context for the recipe generation.
+See more examples in [recipes](recipes/) directory.
 
-## Key Components
+## Architecture
 
-- **Recipe Executor**: Executes recipes defined in JSON format.
-- **Recipe Creator**: Generates new recipes based on a recipe idea.
-- **Recipe Format**: JSON-based recipe definitions with steps
-- **Context Management**: Manages shared state and data between steps in a recipe.
-- **Step Types**: Various operations including file reading/writing, LLM generation, and sub-recipe execution
-  - **LLM Integration**: Supports various LLMs for generating content and executing tasks.
-  - **File Management**: Reads and writes files as part of the recipe execution process.
-  - **Sub-Recipe Execution**: Allows for executing other recipes as part of a larger recipe.
-- **Logging**: Provides logging for debugging and tracking recipe execution.
-- **Template Rendering**: Liquid templates for dynamic content generation
+The system is built as a layered architecture where each layer adds capabilities:
 
-## Setup and Installation
+```mermaid
+graph TD
+    subgraph "User Interfaces"
+        UI1[Document Generator App]
+        UI2[Recipe Executor App]
+        UI3[Recipe Tool App]
+    end
+
+    subgraph "CLI Layer"
+        CLI[Recipe Tool<br/>creation + execution]
+    end
+
+    subgraph "Core Engine"
+        RE[Recipe Executor<br/>pure execution engine]
+    end
+
+    subgraph "Recipe Step Types"
+        ST1[LLM Generate]
+        ST2[Read/Write Files]
+        ST3[MCP Tool Calls]
+        ST4[Execute Sub-Recipe]
+        ST5[Set Context]
+    end
+
+    subgraph "External Services"
+        MCP1[Any MCP Server]
+        LLM[LLM APIs]
+    end
+
+    UI1 --> CLI
+    UI2 --> RE
+    UI3 --> CLI
+    CLI --> RE
+
+    RE --> ST1
+    RE --> ST2
+    RE --> ST3
+    RE --> ST4
+    RE --> ST5
+
+    ST3 -.->|calls| MCP1
+    ST1 -.->|calls| LLM
+
+    style RE stroke:#f0f,stroke-width:4px
+    style CLI stroke:#00f,stroke-width:3px
+```
+
+### Self-Generating Architecture
+
+The Recipe Executor's code is entirely generated from markdown blueprints using the codebase generator recipe. This "self-hosting" demonstrates the framework's power - it can build itself!
+
+```mermaid
+graph LR
+    B[Blueprints<br/>markdown specs] -->|codebase generator<br/>recipe| C[Recipe Executor<br/>source code]
+    C -->|executes| B
+
+    style C stroke:#f0f,stroke-width:4px
+```
+
+## Core Components
+
+### Execution Layer
+
+- **Recipe Executor** (`recipe-executor/`) - Pure execution engine for JSON recipes. This is the foundation that executes recipe steps including LLM calls, file operations, and flow control.
+- **Recipe Tool** (`recipe-tool/`) - Adds recipe creation capabilities on top of Recipe Executor. Can generate new recipes from natural language descriptions.
+
+### User Interfaces
+
+- **Document Generator App** (`apps/document-generator/`) - Specialized UI for document creation workflows with live preview
+- **Recipe Executor App** (`apps/recipe-executor/`) - Debug-focused interface for recipe execution with step-by-step visibility
+- **Recipe Tool App** (`apps/recipe-tool/`) - Full-featured UI combining recipe creation and execution with MCP server integration
+
+### MCP Servers
+
+These servers expose functionality via the Model Context Protocol:
+
+- **Recipe Tool MCP Server** (`mcp-servers/recipe-tool/`) - Exposes the recipe-tool CLI functionality (execute/create) as MCP tools for AI assistants
+- **Python Code Tools MCP** (`mcp-servers/python-code-tools/`) - Provides Python linting capabilities using Ruff for AI assistants to lint code snippets or entire projects
+
+## Installation
 
 ### Prerequisites
 
-Recommended installers:
-
-- Linux: apt or your distribution's package manager
-- macOS: [brew](https://brew.sh/)
-- Windows: [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/)
-
-#### Azure CLI for Azure OpenAI using Managed Identity
-
-If you plan on using Azure OpenAI with Managed Identity, you need to install the Azure CLI. Follow the instructions for your platform:
-
-- **Windows**: [Install the Azure CLI on Windows](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows)
-- **Linux**: [Install the Azure CLI on Linux](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-linux)
-- **macOS**: [Install the Azure CLI on macOS](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-macos)
-
-Execute the following command to log in:
-
-```bash
-az login
-```
-
-This command will open a browser window for you to log in. If you are using Managed Identity, ensure that your Azure CLI is configured to use the correct identity.
-
-#### Development tools
-
-The core dependencies you need to install are:
-
-- `make` - for scripting installation steps of the various projects within this repo
-- `uv` - for managing installed versions of `python` - for installing python dependencies
-- `GitHub cli` - for `ai-context-files` manipulation tool
-
-Linux:
-
-    # make is installed by default on linux
-    sudo apt update && sudo apt install pipx && sudo apt install gh
-    pipx ensurepath
-    pipx install uv
-
-macOS:
-
-    brew install make
-    brew install uv
-    brew install gh
-
-Windows:
-
-    winget install ezwinports.make -e
-    winget install astral-sh.uv  -e
-    winget install GitHub.cli -e
+- **`uv`** - Python dependency management ([install guide](https://github.com/astral-sh/uv))
+- **`GitHub CLI`** - For ai-context-files tool ([install guide](https://cli.github.com/))
+- **Azure CLI** (optional) - For Azure OpenAI with Managed Identity ([install guide](https://docs.microsoft.com/cli/azure/install-azure-cli))
 
 ### Setup Steps
 
-1. Clone this repository
-2. Copy the environment file and configure your API keys:
-   ```bash
-   cp .env.example .env
-   # Edit .env to add your OPENAI_API_KEY and other optional API keys
-   ```
-3. Run the setup command to create a virtual environment and install dependencies:
-   ```bash
-   make
-   ```
-4. Activate the virtual environment:
-   - **Linux/macOS**:
-     ```bash
-     source .venv/bin/activate
-     ```
-   - **Windows**:
-     ```bash
-     .\.venv\Scripts\activate
-     ```
-5. Test the installation by running the example recipe:
-   ```bash
-   make recipe-executor-create
-   ```
-
-## Using the Makefile
-
-The project includes several useful make commands:
-
-- **`make`**: Sets up the virtual environment and installs all dependencies
-- **`make ai-context-files`**: Builds AI context files for recipe executor development
-- **`make recipe-executor-create`**: Generates recipe executor code from scratch using the recipe itself
-- **`make recipe-executor-edit`**: Revises existing recipe executor code using recipes
-
-## Running Recipes via Command Line
-
-Execute a recipe using the command line interface:
-
 ```bash
-recipe-tool --execute path/to/your/recipe.json
+# 1. Clone the repository
+git clone https://github.com/microsoft/recipe-tool.git
+cd recipe-tool
+
+# 2. Configure environment (optional)
+cp .env.example .env
+# Edit .env to add your OPENAI_API_KEY and other API keys
+
+# 3. Install all dependencies
+make install
+
+# 4. Activate virtual environment
+source .venv/bin/activate    # Linux/Mac
+# OR: .venv\Scripts\activate  # Windows
+
+# 5. Verify installation
+recipe-tool --help
 ```
 
-You can also pass context variables:
+## Usage Guide
 
-```bash
-recipe-tool --execute path/to/your/recipe.json context_key=value context_key2=value2
+### Basic Workflow
+
+1. **Write your idea** in natural language (markdown file):
+
+```markdown
+# Analyze Code Quality
+
+Read all Python files in the project and:
+
+1. Count lines of code per file
+2. Identify files with no docstrings
+3. Create a report with recommendations
 ```
 
-Example:
+2. **Generate a recipe** from your idea:
 
 ```bash
-recipe-tool --execute recipes/example_simple/test_recipe.json model=azure/o4-mini
+recipe-tool --create code_quality_idea.md
+# Creates: output/analyze_code_quality.json
 ```
 
-## Creating New Recipes from a Recipe Idea
-
-Create a new recipe using the command line interface:
+3. **Execute the recipe** (now it's reproducible!):
 
 ```bash
-recipe-tool --create path/to/your/recipe_idea.txt
+recipe-tool --execute output/analyze_code_quality.json project_path=./myproject
 ```
 
-This will generate a new recipe file based on the provided idea.
-You can also pass additional files for context:
+### Direct Execution
+
+If you already have JSON recipes:
 
 ```bash
-recipe-tool --create path/to/your/recipe_idea.txt files=path/to/other_file.txt,path/to/another_file.txt
+# Execute with context variables
+recipe-tool --execute recipes/example_simple/test_recipe.json model=azure/gpt-4o
 ```
 
-Example:
+### Web Interfaces
+
+For a more visual experience:
 
 ```bash
-recipe-tool --create recipes/recipe_creator/prompts/sample_recipe_idea.md
-
-# Test it out
-recipe-tool --execute output/analyze_codebase.json input=ai_context/generated/RECIPE_EXECUTOR_CODE_FILES.md,ai_context/generated/RECIPE_EXECUTOR_RECIPE_FILES.md
+recipe-tool-app          # Full UI for creation and execution
+recipe-executor-app      # Debug-focused execution UI
+document-generator-app   # Document workflow UI
 ```
 
-## Project Structure
+### Advanced Workflows
 
-The project contains:
+#### Code Generation from Blueprints
 
-- **`recipe_tool.py`**: The main entry point for the command line interface for both recipe execution and creation
-- **`recipe_executor/`**: Core implementation with modules for execution, context management, and steps
-- **`recipes/`**: Recipe definition files that can be executed
+The Recipe Executor generates its own code:
 
-## Building from Recipes
+```bash
+# Generate all Recipe Executor code
+recipe-tool --execute recipes/codebase_generator/codebase_generator_recipe.json
 
-One of the more interesting aspects of this project is that it can _generate its own code using recipes_:
+# Generate specific component
+recipe-tool --execute recipes/codebase_generator/codebase_generator_recipe.json \
+   component_id=steps.llm_generate
+```
 
-1. To generate the code from scratch:
+#### Document Generation
 
-   ```bash
-   make recipe-executor-create
-   ```
+Create structured documents from outlines:
 
-2. To edit/revise existing code:
-   ```bash
-   make recipe-executor-edit
-   ```
+```bash
+recipe-tool --execute recipes/document_generator/document_generator_recipe.json \
+   outline=path/to/outline.json
+```
 
-This demonstrates the power of the Recipe Executor for code generation and maintenance tasks.
+#### MCP Server Integration
+
+For AI assistants (Claude Desktop, etc.):
+
+```bash
+# Recipe capabilities via MCP
+recipe-tool-mcp-server stdio              # For Claude Desktop
+recipe-tool-mcp-server sse --port 3002    # For HTTP clients
+
+# Python linting via MCP
+python-code-tools stdio
+```
+
+## Recipe Catalog
+
+### 🔨 Code Generation Recipes
+
+- **Codebase Generator** (`recipes/codebase_generator/`) - Transforms markdown blueprints into working code
+
+  - Used to generate the Recipe Executor itself!
+  - Sub-recipes for component processing and code generation
+
+- **Blueprint Generators** (`recipes/experimental/blueprint_generator_v*/`) - Creates blueprints from ideas
+  - Multiple versions exploring different approaches
+  - Generates component specifications and documentation
+
+### 📄 Document Creation Recipes
+
+- **Document Generator** (`recipes/document_generator/`) - Creates documents from structured outlines
+  - Handles multi-section documents with resource loading
+  - Supports markdown output with live preview in UI
+
+### 🛠️ Utility Recipes
+
+- **Recipe Creator** (`recipes/recipe_creator/`) - Generates recipes from natural language descriptions
+
+  - Core functionality of the recipe-tool CLI
+  - Analyzes ideas and creates executable JSON recipes
+
+- **File Generation** (`recipes/utilities/`) - Various file processing utilities
+  - Generate content from file collections
+  - Template-based file creation
+
+### 📚 Example Recipes
+
+- **Simple Examples** (`recipes/example_simple/`) - Basic recipe patterns
+- **Complex Examples** (`recipes/example_complex/`) - Advanced workflows with sub-recipes
+- **Template Examples** (`recipes/example_templates/`) - Using Liquid templates
+- **MCP Examples** (`recipes/example_mcp_step/`) - MCP server integration
+- **Content Writer** (`recipes/example_content_writer/`) - LLM content generation
+
+## Development
+
+### Getting Started
+
+```bash
+# Workspace commands
+make help              # Show all available commands
+make workspace-info    # Show project structure
+make doctor           # Check workspace health
+
+# Code quality
+make lint             # Run linting
+make format           # Format code
+make test             # Run tests
+
+# AI development
+make ai-context-files # Generate context for AI assistants
+```
+
+### VSCode Integration
+
+The project includes a comprehensive VSCode workspace configuration:
+
+- Multi-root workspace organized by project type
+- Pre-configured Python paths and testing
+- Ruff integration for code quality
+- Recommended extensions
+
+```bash
+code recipe-tool-workspace.code-workspace
+```
+
+### Self-Generating Code
+
+The Recipe Executor generates its own code from blueprints:
+
+1. **Write blueprints** in `blueprints/recipe_executor/components/`
+2. **Run generator** `recipe-tool --execute recipes/codebase_generator/codebase_generator_recipe.json`
+3. **Code is generated** in `recipe-executor/`
+
+This demonstrates the power of the modular approach - the tool builds itself!
+
+## Philosophy & Design
+
+This project embodies a modular, AI-driven approach to software development:
+
+- **Modular Design**: Small, self-contained components with clear interfaces
+- **AI-First Development**: Components are generated from specifications
+- **Regeneration over Editing**: Prefer regenerating components to manual edits
+- **Human as Architect**: Humans design specifications, AI builds the code
+
+See [ai_context/MODULAR_DESIGN_PHILOSOPHY.md](ai_context/MODULAR_DESIGN_PHILOSOPHY.md) and [ai_context/IMPLEMENTATION_PHILOSOPHY.md](ai_context/IMPLEMENTATION_PHILOSOPHY.md) for detailed philosophy.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
