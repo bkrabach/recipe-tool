@@ -43,3 +43,6 @@ logs
 
 # Test files
 .coverage
+
+# Working folders
+.working
