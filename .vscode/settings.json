@@ -18,6 +18,7 @@
     "output",
     "logs",
     "ai_context",
+    "ai_working",
     "recipes",
     "blueprints"
   ],
