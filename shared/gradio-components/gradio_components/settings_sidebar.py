@@ -7,14 +7,8 @@ from typing import Any, Callable, Dict, List, Optional
 import gradio as gr
 from pydantic import BaseModel
 
-from .config_manager import (
-    load_settings, 
-    save_settings as save_config, 
-    get_setting, 
-    get_model_string,
-    get_env_or_default,
-    is_override
-)
+from .config_manager import get_env_or_default, get_model_string, get_setting, is_override
+from .config_manager import save_settings as save_config
 
 
 class SettingsConfig(BaseModel):
@@ -121,7 +115,7 @@ def create_settings_sidebar(
         config = SettingsConfig()
 
     components = {}
-    
+
     def get_label_suffix(key: str, default_value: Any = None) -> str:
         """Get label suffix based on where the value comes from."""
         # Reload settings to get fresh data
@@ -131,7 +125,7 @@ def create_settings_sidebar(
             return " [ENV]"
         else:
             return " [DEFAULT]"
-    
+
     # Get current model from config/environment - this already calls get_setting which loads fresh data
     current_model = get_model_string()
     model_parts = current_model.split("/")
@@ -141,16 +135,13 @@ def create_settings_sidebar(
 
     with gr.Accordion("Model Configuration", open=True):
         # Model provider dropdown - mark openai as default
-        provider_choices = [
-            f"{p} [DEFAULT]" if p == "openai" else p 
-            for p in config.model_providers
-        ]
+        provider_choices = [f"{p} [DEFAULT]" if p == "openai" else p for p in config.model_providers]
         # Match the value with choices - if openai is in choices with [DEFAULT], use that
         if current_provider == "openai" and "openai [DEFAULT]" in provider_choices:
             provider_value = "openai [DEFAULT]"
         else:
             provider_value = current_provider
-        
+
         provider = gr.Dropdown(
             label="Model Provider" + get_label_suffix("MODEL"),
             choices=provider_choices,
@@ -162,10 +153,7 @@ def create_settings_sidebar(
         # Model selection (dynamic based on provider) - mark o4-mini as default for openai
         model_choices = config.model_configs.get(current_provider, [])
         if current_provider == "openai":
-            model_choices = [
-                f"{m} [DEFAULT]" if m == "o4-mini" else m 
-                for m in model_choices
-            ]
+            model_choices = [f"{m} [DEFAULT]" if m == "o4-mini" else m for m in model_choices]
             # Only show [DEFAULT] if we're actually using the default
             if current_model_name == "o4-mini" and not is_override("MODEL") and get_env_or_default("MODEL") is None:
                 model_value = "o4-mini [DEFAULT]"
@@ -173,7 +161,7 @@ def create_settings_sidebar(
                 model_value = current_model_name
         else:
             model_value = current_model_name
-            
+
         model_name = gr.Dropdown(
             label="Model" + get_label_suffix("MODEL"),
             choices=model_choices,
@@ -199,7 +187,7 @@ def create_settings_sidebar(
             max_tokens_value = int(max_tokens_str) if max_tokens_str and max_tokens_str.strip() else None
         except (ValueError, TypeError):
             max_tokens_value = None
-            
+
         # gr.Number doesn't support None/empty, so we'll use Textbox with number validation
         max_tokens = gr.Textbox(
             label="Max Tokens" + get_label_suffix("MAX_TOKENS"),
@@ -220,7 +208,7 @@ def create_settings_sidebar(
 
             # Create label with suffix
             label = var_config["label"] + get_label_suffix(var_name, var_config.get("default"))
-                
+
             if var_config["type"] == "password":
                 component = gr.Textbox(
                     label=label,
@@ -246,13 +234,10 @@ def create_settings_sidebar(
                 default_val = var_config.get("default", "")
                 if default_val and default_val in choices:
                     # Add [DEFAULT] marker to the default choice
-                    marked_choices = [
-                        f"{choice} [DEFAULT]" if choice == default_val else choice 
-                        for choice in choices
-                    ]
+                    marked_choices = [f"{choice} [DEFAULT]" if choice == default_val else choice for choice in choices]
                 else:
                     marked_choices = choices
-                    
+
                 current_value = get_setting(var_name, default_val)
                 # Match the value with the choices - if it has [DEFAULT] in choices, use that
                 default_choice = f"{default_val} [DEFAULT]"
@@ -260,7 +245,7 @@ def create_settings_sidebar(
                     display_value = default_choice
                 else:
                     display_value = current_value
-                    
+
                 component = gr.Dropdown(
                     label=label,
                     choices=marked_choices,
@@ -294,20 +279,19 @@ def create_settings_sidebar(
         """Update model choices based on provider selection."""
         # Remove [DEFAULT] tag if present
         provider = provider.replace(" [DEFAULT]", "")
-        
+
         models = config.model_configs.get(provider, [])
-        
+
         # Add default markers for openai
         if provider == "openai":
-            marked_models = [
-                f"{m} [DEFAULT]" if m == "o4-mini" else m 
-                for m in models
-            ]
-            default_value = "o4-mini [DEFAULT]" if models and "o4-mini" in models else (marked_models[0] if marked_models else "")
+            marked_models = [f"{m} [DEFAULT]" if m == "o4-mini" else m for m in models]
+            default_value = (
+                "o4-mini [DEFAULT]" if models and "o4-mini" in models else (marked_models[0] if marked_models else "")
+            )
         else:
             marked_models = models
             default_value = models[0] if models else ""
-            
+
         updates = {
             "model_name": gr.update(choices=marked_models, value=default_value),
             "azure_deployment": gr.update(visible=(provider == "azure")),
@@ -338,7 +322,7 @@ def create_settings_sidebar(
             # Map positional arguments to kwargs based on the order we defined in save_inputs
             arg_names = ["provider", "model_name", "azure_deployment", "max_tokens"]
             arg_names.extend(config.env_vars.keys())
-            
+
             kwargs = {}
             for i, value in enumerate(args):
                 if i < len(arg_names):
@@ -346,7 +330,7 @@ def create_settings_sidebar(
                     if isinstance(value, str) and "[DEFAULT]" in value:
                         value = value.replace(" [DEFAULT]", "")
                     kwargs[arg_names[i]] = value
-            
+
             # Build model string
             provider = kwargs.get("provider", "openai")
             model_name = kwargs.get("model_name", "o4-mini")
@@ -361,7 +345,7 @@ def create_settings_sidebar(
             settings_to_save = {
                 "MODEL": model_str,
             }
-            
+
             # Add max_tokens if provided
             max_tokens_value = kwargs.get("max_tokens")
             if max_tokens_value is not None and max_tokens_value != "":
@@ -384,7 +368,7 @@ def create_settings_sidebar(
 
             # Save to config file
             save_config(settings_to_save)
-            
+
             # Prepare callback data
             settings = {
                 "model": model_str,
@@ -413,7 +397,7 @@ def create_settings_sidebar(
     for var_name in config.env_vars.keys():
         if var_name in components:
             save_inputs.append(components[var_name])
-    
+
     save_btn.click(
         fn=save_settings,
         inputs=save_inputs,
@@ -426,7 +410,7 @@ def create_settings_sidebar(
         outputs=[status],
         js="() => new Promise(resolve => setTimeout(() => resolve(), 3000))",
     )
-    
+
     # Clear button handler
     def clear_overrides():
         """Clear all config overrides and return to env/defaults."""
@@ -437,7 +421,7 @@ def create_settings_sidebar(
             return "✅ All overrides cleared! Values reset to environment/defaults."
         except Exception as e:
             return f"❌ Error clearing overrides: {str(e)}"
-    
+
     clear_btn.click(
         fn=clear_overrides,
         outputs=[status],
