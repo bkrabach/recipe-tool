@@ -1,0 +1,22 @@
+[project]
+name = "auth-components"
+version = "0.1.0"
+description = "Microsoft Entra ID authentication components for Recipe Tool projects"
+authors = [{ name = "MADE:Explorations Team" }]
+license = "MIT"
+readme = "../README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "msal>=1.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+package = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["auth_components"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

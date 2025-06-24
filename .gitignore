@@ -46,3 +46,6 @@ logs
 
 # Working folders
 ai_working/tmp
+
+# Local cache files
+.auth_cache
