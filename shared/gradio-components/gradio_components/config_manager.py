@@ -15,12 +15,12 @@ def get_config_path() -> Path:
 
 def load_settings() -> Dict[str, Any]:
     """Load settings from config file.
-    
+
     Returns:
         Dict containing settings, empty dict if file doesn't exist
     """
     config_path = get_config_path()
-    
+
     if config_path.exists():
         try:
             with open(config_path, "r") as f:
@@ -28,35 +28,35 @@ def load_settings() -> Dict[str, Any]:
         except (json.JSONDecodeError, IOError):
             # If file is corrupted, return empty dict
             return {}
-    
+
     return {}
 
 
 def save_settings(settings: Dict[str, Any]) -> None:
     """Save settings to config file as overrides only.
-    
+
     Only saves values that differ from environment variables or defaults.
     Removes values that match env vars or are empty.
-    
+
     Args:
         settings: Dictionary of settings to save
     """
     config_path = get_config_path()
-    
+
     # Start with existing settings
     existing = load_settings()
-    
+
     # Process each setting
     for key, value in settings.items():
         env_value = os.getenv(key)
-        
+
         # Remove empty values or values that match environment
         if value is None or value == "" or (env_value and str(value) == str(env_value)):
             existing.pop(key, None)
         else:
             # Only save if it's different from environment
             existing[key] = value
-    
+
     # Save the updated settings
     if existing:
         with open(config_path, "w") as f:
@@ -68,11 +68,11 @@ def save_settings(settings: Dict[str, Any]) -> None:
 
 def get_setting(key: str, default: Optional[Any] = None) -> Any:
     """Get a specific setting value.
-    
+
     Args:
         key: Setting key to retrieve
         default: Default value if key doesn't exist
-        
+
     Returns:
         Setting value or default
     """
@@ -80,7 +80,7 @@ def get_setting(key: str, default: Optional[Any] = None) -> Any:
     env_value = os.getenv(key)
     if env_value is not None:
         return env_value
-    
+
     # Then check config file
     settings = load_settings()
     return settings.get(key, default)
@@ -88,11 +88,11 @@ def get_setting(key: str, default: Optional[Any] = None) -> Any:
 
 def get_env_or_default(key: str, default: Optional[Any] = None) -> Any:
     """Get value from environment only (not config).
-    
+
     Args:
         key: Setting key to retrieve
         default: Default value if not in environment
-        
+
     Returns:
         Environment value or default
     """
@@ -101,10 +101,10 @@ def get_env_or_default(key: str, default: Optional[Any] = None) -> Any:
 
 def is_override(key: str) -> bool:
     """Check if a setting is overridden in config file.
-    
+
     Args:
         key: Setting key to check
-        
+
     Returns:
         True if value is from config file, False if from env/default
     """
@@ -118,7 +118,7 @@ def get_model_string() -> str:
     model = get_setting("MODEL")
     if model:
         return model
-    
+
     # Otherwise, try to construct from available info
     # This maintains backward compatibility
     if get_setting("OPENAI_API_KEY"):

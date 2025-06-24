@@ -9,6 +9,7 @@ requires-python = ">=3.11"
 dependencies = [
     "gradio>=5.30.0",
     "jsonschema>=4.0.0",
+    "msal>=1.32.3",
     "pydantic>=1.10.0",
     "python-dotenv>=0.20.0",
     "recipe-tool>=0.1.1",
