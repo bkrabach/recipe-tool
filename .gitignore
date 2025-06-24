@@ -11,6 +11,10 @@
 appsettings.*.json
 **/.DS_Store
 
+# Auth cache files
+.auth_cache*
+**/.auth_cache*
+
 # Dependencies and build cache
 node_modules
 .venv
@@ -46,6 +50,3 @@ logs
 
 # Working folders
 ai_working/tmp
-
-# Local cache files
-.auth_cache

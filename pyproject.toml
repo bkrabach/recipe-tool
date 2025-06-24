@@ -4,6 +4,8 @@ members = [
     "recipe-executor",
     "shared/gradio-components",
     "shared/auth-components",
+    "shared/onedrive-components",
+    "shared/gradio-auth-components",
     "apps/document-generator",
     "apps/recipe-executor",
     "apps/recipe-tool",
@@ -18,6 +20,8 @@ recipe-executor = { workspace = true }
 recipe-tool = { workspace = true }
 gradio-components = { workspace = true }
 auth-components = { workspace = true }
+onedrive-components = { workspace = true }
+gradio-auth-components = { workspace = true }
 # Apps
 document-generator-app = { workspace = true }
 recipe-executor-app = { workspace = true }

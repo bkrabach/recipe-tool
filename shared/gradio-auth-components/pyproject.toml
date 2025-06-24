@@ -1,0 +1,22 @@
+[project]
+name = "gradio-auth-components"
+version = "0.1.0"
+description = "Gradio components for Microsoft Entra ID authentication"
+authors = [{ name = "MADE:Explorations Team" }]
+license = "MIT"
+readme = "../README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "gradio>=5.0.0",
+    "auth-components",
+]
+
+[tool.uv]
+package = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["gradio_auth_components"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
